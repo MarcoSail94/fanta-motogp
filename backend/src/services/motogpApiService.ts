@@ -257,13 +257,31 @@ export class MotoGPApiService {
           const sessionsResponse = await this.axiosInstance.get(`/results/sessions?eventUuid=${resultsApiEventUuid}&categoryUuid=${categoryId}`);
           const sessions = sessionsResponse.data;
           
-          const raceSession = sessions
-            .filter((s: any) => s.type === 'RAC')
-            .sort((a: any, b: any) => (b.number || 0) - (a.number || 0))[0];
+          // --- LOGICA E LOGS PER LE SESSIONI MULTIPLE (BANDIERA ROSSA) ---
+          const racSessions = sessions.filter((s: any) => s.type === 'RAC');
+          console.log(`\n[DEBUG - ${category}] Trovate ${racSessions.length} sessioni RAC. Dettagli:`, 
+            racSessions.map((s: any) => ({ id: s.id, number: s.number, status: s.status }))
+          );
 
-          const sprintSession = sessions
-            .filter((s: any) => s.type === 'SPR')
-            .sort((a: any, b: any) => (b.number || 0) - (a.number || 0))[0];
+          const sprSessions = sessions.filter((s: any) => s.type === 'SPR');
+          if (sprSessions.length > 0) {
+            console.log(`[DEBUG - ${category}] Trovate ${sprSessions.length} sessioni SPR. Dettagli:`, 
+              sprSessions.map((s: any) => ({ id: s.id, number: s.number, status: s.status }))
+            );
+          }
+
+          // Ordiniamo e prendiamo quella con il numero più alto
+          const raceSession = racSessions.sort((a: any, b: any) => (b.number || 0) - (a.number || 0))[0];
+          const sprintSession = sprSessions.sort((a: any, b: any) => (b.number || 0) - (a.number || 0))[0];
+
+          if (raceSession) {
+             console.log(`[DEBUG - ${category}] 🎯 RAC Selezionata: number ${raceSession.number}, status: ${raceSession.status}`);
+          }
+          if (sprintSession) {
+             console.log(`[DEBUG - ${category}] 🎯 SPR Selezionata: number ${sprintSession.number}, status: ${sprintSession.status}`);
+          }
+          console.log('--------------------------------------------------');
+          
           const q1Session = sessions.find((s: any) => (s.type === 'Q' && s.number === 1) || s.type === 'Q1');
           const q2Session = sessions.find((s: any) => (s.type === 'Q' && s.number === 2) || s.type === 'Q2');
           const fp1Session = sessions.find((s: any) => (s.type === 'FP' && s.number === 1) || s.type === 'FP1');
@@ -405,10 +423,20 @@ export class MotoGPApiService {
         // Recuperiamo tutte le sessioni
         const allSessions = await this.getAllApiSessions(race.apiEventId!, categoryId);
         
-        // Filtriamo per tipo e prendiamo quella con il 'number' più alto (gestione bandiera rossa)
-        const session = allSessions
-            .filter((s: any) => s.type === apiSessionType)
-            .sort((a: any, b: any) => (b.number || 0) - (a.number || 0))[0];
+        // Estrai le sessioni del tipo richiesto
+        const targetSessions = allSessions.filter((s: any) => s.type === apiSessionType);
+        
+        console.log(`\n[DEBUG - syncRaceOrSprint] Evento: ${race.name} | Categoria: ${category} | Tipo: ${apiSessionType}`);
+        console.log(`[DEBUG - syncRaceOrSprint] Trovate ${targetSessions.length} sessioni. Dettagli:`, 
+             targetSessions.map((s: any) => ({ number: s.number, status: s.status }))
+        );
+
+        // Prendi quella con il 'number' più alto
+        const session = targetSessions.sort((a: any, b: any) => (b.number || 0) - (a.number || 0))[0];
+
+        if (session) {
+             console.log(`[DEBUG - syncRaceOrSprint] 🎯 Selezionata sessione con number ${session.number} e status ${session.status}\n`);
+        }
 
         return await this.processAndSaveSessionResults(race, category, sessionType, session);
     } catch (error) {
