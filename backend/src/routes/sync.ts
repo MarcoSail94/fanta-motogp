@@ -42,6 +42,8 @@ router.get('/cron/sync-results', authenticateCron, async (req, res) => {
     }
 });
 
+router.delete('/cron/results/latest', authenticateCron, syncController.deleteLatestRaceResults);
+
 
 // --- Rotte per il pannello di amministrazione (protette da login admin) ---
 router.use(authenticate);

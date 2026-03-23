@@ -341,3 +341,39 @@ export const insertRaceResults = async (req: AuthRequest, res: Response) => {
     });
   }
 };
+
+export const deleteLatestRaceResults = async (req: Request, res: Response) => {
+  try {
+    console.log('🗑️ [DELETE-LATEST] Inizio ricerca ultima gara per cancellazione risultati...');
+    const now = new Date();
+
+    // Trova l'ultima gara disputata
+    const lastRace = await prisma.race.findFirst({
+      where: { gpDate: { lte: now } },
+      orderBy: { gpDate: 'desc' },
+    });
+
+    if (!lastRace) {
+      console.log('ℹ️ [DELETE-LATEST] Nessuna gara trovata.');
+      return res.status(404).json({ success: false, message: 'Nessuna gara passata trovata.' });
+    }
+
+    console.log(`🗑️ [DELETE-LATEST] Cancellazione risultati per: ${lastRace.name} (ID: ${lastRace.id})`);
+    
+    // Cancella SOLO i risultati legati a questa gara
+    const { count } = await prisma.raceResult.deleteMany({
+      where: { raceId: lastRace.id }
+    });
+    
+    console.log(`✅ [DELETE-LATEST] Operazione completata. Cancellati ${count} record.`);
+    return res.status(200).json({ 
+      success: true, 
+      message: `Cancellati ${count} risultati per la gara ${lastRace.name}.`,
+      deletedCount: count
+    });
+
+  } catch (error) {
+    console.error('❌ [DELETE-LATEST] Errore critico:', error);
+    return res.status(500).json({ error: 'Errore durante la cancellazione dei risultati dell\'ultima gara.' });
+  }
+};
