@@ -514,15 +514,36 @@ export class MotoGPApiService {
   }
 
   private async processAndSaveSessionResults(race: Race, category: Category, sessionType: SessionType, session: any): Promise<boolean> {
-    if (session && session.status === 'FINISHED') {
-        const results = await this.fetchSessionResults(session.id);
-        if (results) {
-            await this.saveRaceResults(race.id, category, results, sessionType);
-            console.log(`[OK] Risultati salvati per ${race.name} - ${category} - ${sessionType}`);
-            return true;
-        }
-    } else {
-        console.log(`[INFO] Sessione ${sessionType} per ${race.name} - ${category} non ancora conclusa o non trovata.`);
+    if (!session) {
+      console.log(`[INFO] Sessione ${sessionType} per ${race.name} - ${category} non trovata.`);
+      return false;
+    }
+
+    if (session.status === 'FINISHED') {
+      const results = await this.fetchSessionResults(session.id);
+      
+      if (results) {
+        await this.saveRaceResults(race.id, category, results, sessionType);
+        console.log(`[OK] Risultati salvati per ${race.name} - ${category} - ${sessionType}`);
+        return true;
+      }
+    } 
+    // Caso 2: Sessione è una ripartenza (Gara 2, 3, ecc.) e si trova in stato NOT-STARTED
+    else if (session.status === 'NOT-STARTED' && session.number > 1) {
+      console.log(`[INFO] Trovata ripartenza (Gara ${session.number}) per ${race.name} in stato NOT-STARTED. Tento il fetch dei risultati...`);
+      const results = await this.fetchSessionResults(session.id);
+      
+      if (results) {
+        await this.saveRaceResults(race.id, category, results, sessionType);
+        console.log(`[OK] Risultati salvati per Gara ${session.number} di ${race.name} - ${category} - ${sessionType}`);
+        return true;
+      } else {
+         console.log(`[INFO] Gara ${session.number} non ha ancora risultati disponibili nel sistema (Stato: ${session.status}).`);
+      }
+    } 
+    // Nessun caso soddisfatto (es. LIVE, CANCELLED o NOT-STARTED ma è la Gara 1)
+    else {
+      console.log(`[INFO] Sessione ${sessionType} per ${race.name} - ${category} non elaborabile (Stato: ${session.status}, Numero: ${session.number || 'N/A'}).`);
     }
     return false;
   }
