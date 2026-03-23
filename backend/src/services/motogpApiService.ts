@@ -257,8 +257,13 @@ export class MotoGPApiService {
           const sessionsResponse = await this.axiosInstance.get(`/results/sessions?eventUuid=${resultsApiEventUuid}&categoryUuid=${categoryId}`);
           const sessions = sessionsResponse.data;
           
-          const raceSession = sessions.find((s: any) => s.type === 'RAC');
-          const sprintSession = sessions.find((s: any) => s.type === 'SPR');
+          const raceSession = sessions
+            .filter((s: any) => s.type === 'RAC')
+            .sort((a: any, b: any) => (b.number || 0) - (a.number || 0))[0];
+
+          const sprintSession = sessions
+            .filter((s: any) => s.type === 'SPR')
+            .sort((a: any, b: any) => (b.number || 0) - (a.number || 0))[0];
           const q1Session = sessions.find((s: any) => (s.type === 'Q' && s.number === 1) || s.type === 'Q1');
           const q2Session = sessions.find((s: any) => (s.type === 'Q' && s.number === 2) || s.type === 'Q2');
           const fp1Session = sessions.find((s: any) => (s.type === 'FP' && s.number === 1) || s.type === 'FP1');
@@ -396,7 +401,14 @@ export class MotoGPApiService {
 
     try {
         const apiSessionType = sessionType.slice(0, 3); // "RAC" o "SPR"
-        const session = await this.findApiSession(race.apiEventId!, categoryId, s => s.type === apiSessionType);
+
+        // Recuperiamo tutte le sessioni
+        const allSessions = await this.getAllApiSessions(race.apiEventId!, categoryId);
+        
+        // Filtriamo per tipo e prendiamo quella con il 'number' più alto (gestione bandiera rossa)
+        const session = allSessions
+            .filter((s: any) => s.type === apiSessionType)
+            .sort((a: any, b: any) => (b.number || 0) - (a.number || 0))[0];
 
         return await this.processAndSaveSessionResults(race, category, sessionType, session);
     } catch (error) {
