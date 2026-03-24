@@ -2,11 +2,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getTeamById, getLineup, setLineup, getRaceById } from '../services/api';
+import { getTeamById, getLineup, setLineup, getRaceById, getRaceResults, getQualifyingResults } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 import {
   Box, Typography, Grid, Paper, Button, Avatar, TextField, 
-  Chip, Stack, Card, CardActionArea, Skeleton
+  Chip, Stack, Card, CardActionArea, Skeleton, Tooltip
 } from '@mui/material';
 import { CheckCircle, Save } from '@mui/icons-material';
 
@@ -26,6 +26,19 @@ export default function LineupPage() {
   const { data: teamData, isLoading: l1 } = useQuery({ queryKey: ['team', teamId], queryFn: () => getTeamById(teamId!) });
   const { data: raceData, isLoading: l2 } = useQuery({ queryKey: ['race', raceId], queryFn: () => getRaceById(raceId!) });
   const { data: lineupData, isLoading: l3 } = useQuery({ queryKey: ['lineup', teamId, raceId], queryFn: () => getLineup(teamId!, raceId!) });
+
+  // Fetch dei risultati delle sessioni precedenti
+  const { data: raceResultsData } = useQuery({ 
+    queryKey: ['raceResults', raceId], 
+    queryFn: () => getRaceResults(raceId!), 
+    enabled: !!raceId 
+  });
+  
+  const { data: qualiResultsData } = useQuery({ 
+    queryKey: ['qualiResults', raceId], 
+    queryFn: () => getQualifyingResults(raceId!), 
+    enabled: !!raceId 
+  });
 
   // Inizializzazione dati esistenti
   useEffect(() => {
@@ -115,6 +128,57 @@ export default function LineupPage() {
     }));
   };
 
+  // Helper per recuperare la posizione del pilota
+  const getRiderPosition = (riderId: string, category: string, session: string) => {
+    if (session === 'QUALIFYING') {
+      const results = qualiResultsData?.results?.[category] || [];
+      const res = results.find((r: any) => r.riderId === riderId);
+      return res?.position;
+    } else {
+      const results = raceResultsData?.results?.[session]?.[category] || [];
+      const res = results.find((r: any) => r.riderId === riderId);
+      return res?.position;
+    }
+  };
+
+  const renderSessionPositions = (riderId: string, category: string) => {
+    const sessions = [
+      { id: 'QUALIFYING', label: 'Q' },
+      { id: 'FP2', label: 'FP2' },
+      { id: 'PR', label: 'PR' },
+      { id: 'FP1', label: 'FP1' }
+    ];
+
+    const hasAnySession = sessions.some(s => getRiderPosition(riderId, category, s.id));
+    if (!hasAnySession) return null;
+
+    return (
+      <Stack direction="row" spacing={1} sx={{ mt: 0.5, flexWrap: 'wrap', gap: 0.5 }}>
+        {sessions.map(s => {
+          const pos = getRiderPosition(riderId, category, s.id);
+          if (!pos) return null;
+          return (
+            <Tooltip title={s.id} key={s.id}>
+              <Chip 
+                label={`${s.label}: ${pos}°`} 
+                size="small" 
+                variant="outlined" 
+                sx={{ 
+                  fontSize: '0.65rem', 
+                  height: '20px', 
+                  borderColor: 'rgba(255,255,255,0.2)',
+                  color: 'text.secondary',
+                  '& .MuiChip-label': { px: 1 }
+                }} 
+              />
+            </Tooltip>
+          );
+        })}
+      </Stack>
+    );
+  };
+
+  
   return (
     <Box className="fade-in">
       {/* Header Sticky */}
@@ -208,6 +272,7 @@ export default function LineupPage() {
                               <Box flexGrow={1} sx={{ minWidth: 0 }}>
                                 <Typography fontWeight="bold" variant="body2" noWrap>{rider.name}</Typography>
                                 <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{rider.team}</Typography>
+                                {renderSessionPositions(rider.id, cat)}
                               </Box>
                               
                               {isSelected && <CheckCircle sx={{ ml: 'auto', color: CAT_COLORS[cat], fontSize: 20, display: { xs: 'none', sm: 'block' } }} />}
