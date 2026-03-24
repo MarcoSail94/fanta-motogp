@@ -112,10 +112,16 @@ export default function HomePage() {
             variant="contained"
             color="success"
             endIcon={<ArrowForward />}
-            onClick={() => navigate(`/teams`)} 
+            onClick={() => {
+              if (leagues.length === 1) {
+                navigate(`/leagues/${leagues[0].id}`);
+              } else {
+                navigate('/teams');
+              }
+            }} 
             sx={{ fontWeight: 'bold', width: { xs: '100%', sm: 'auto' } }}
           >
-            Vedi Punteggi Team
+            {leagues.length === 1 ? 'Vedi Classifica' : 'Vedi Punteggi Team'}
           </Button>
         </Paper>
       )}
