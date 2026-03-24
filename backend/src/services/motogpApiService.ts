@@ -22,6 +22,18 @@ const CATEGORY_MAPPING: Record<string, Category> = {
   '954f7e65-2ef2-4423-b949-4961cc603e45': Category.MOTO3
 };
 
+// Pesi per l'ordinamento dei piloti non classificati
+const statusWeight: Record<string, number> = {
+  'FINISHED': 0,
+  'INSTND': 0,
+  'OUTSTND': 1,           // Ritirato a gara in corso
+  'NOTFINISHFIRST': 2,    // Caduto al primo giro
+  'NOTSTARTED': 3,        // DNS / Non partito
+  'NOTONRESTARTGRID': 4,  // Non presentatosi in griglia alla ripartenza
+  'DNS': 5,
+  'DSQ': 6
+};
+
 const getRiderType = (apiRider: any): RiderType => {
     const careerStep = apiRider.current_career_step;
     if (!careerStep || !careerStep.type) return RiderType.TEST_RIDER;
@@ -574,7 +586,6 @@ export class MotoGPApiService {
     return Object.keys(CATEGORY_MAPPING).find(key => CATEGORY_MAPPING[key] === category);
   }
   
-  // 🔴 Metodo modificato per utilizzare l'UUID dei risultati
   private async getAllApiSessions(eventUuid: string, categoryUuid: string): Promise<any[]> {
     const resultsApiEventUuid = await this.getResultsApiEventUuid(eventUuid);
     const response = await this.axiosInstance.get(`/results/sessions?eventUuid=${resultsApiEventUuid}&categoryUuid=${categoryUuid}`);
@@ -601,13 +612,34 @@ export class MotoGPApiService {
     }
   }
 
+  // --- 🔴 METODO AGGIORNATO CON L'ALGORITMO E IL FIX DELLE POSIZIONI ---
   private async saveRaceResults(raceId: string, category: Category, classification: any[], session: SessionType) {
-    const finishedRiders = classification.filter(r => r.position !== null);
-    const dnfRiders = classification.filter(r => r.position === null).sort((a, b) => (b.total_laps || 0) - (a.total_laps || 0));
-    const lastPosition = finishedRiders.length;
-    const finalClassification = [...finishedRiders, ...dnfRiders.map((rider, index) => ({ ...rider, position: lastPosition + index + 1 }))];
+    // 1. Ordiniamo la classificazione in base all'algoritmo discusso
+    const sortedClassification = classification.sort((a: any, b: any) => {
+      if (a.position !== null && b.position !== null) return a.position - b.position;
+      if (a.position !== null && b.position === null) return -1;
+      if (a.position === null && b.position !== null) return 1;
 
-    for (const result of finalClassification) {
+      // Se entrambi sono a position null, si guarda ai giri
+      if (a.total_laps !== b.total_laps) {
+        return (b.total_laps || 0) - (a.total_laps || 0); // Ordine decrescente
+      }
+
+      // Se i giri sono uguali, usiamo i pesi degli status
+      const weightA = statusWeight[a.status] || 99;
+      const weightB = statusWeight[b.status] || 99;
+      
+      return weightA - weightB;
+    });
+
+    // 2. Iteriamo e salviamo nel DB
+    for (let i = 0; i < sortedClassification.length; i++) {
+      const result = sortedClassification[i];
+
+      // TRUCCHETTO: se la posizione è null (non classificato), diamo una posizione progressiva fittizia (100+)
+      // per permettere al DB di rispettare l'ordinamento calcolato con l'algoritmo.
+      const finalPosition = result.position !== null ? result.position : (100 + i);
+
       let rider = await prisma.rider.findUnique({ where: { apiRiderId: result.rider.riders_api_uuid } });
       
       if (!rider) {
@@ -618,14 +650,20 @@ export class MotoGPApiService {
         }
       }
       
+      // Mappiamo correttamente i nuovi status in formato enum prisma
       let status: 'FINISHED' | 'DNF' | 'DNS' | 'DSQ' = 'FINISHED';
-      if (result.status === 'OUTSTND' || result.status === 'DNF') status = 'DNF';
-      else if (result.status === 'DNS') status = 'DNS';
-      else if (result.status === 'DSQ') status = 'DSQ';
-      else if (!result.position) status = 'DNF';
+      if (['OUTSTND', 'DNF', 'NOTFINISHFIRST'].includes(result.status)) {
+        status = 'DNF';
+      } else if (['DNS', 'NOTSTARTED', 'NOTONRESTARTGRID'].includes(result.status)) {
+        status = 'DNS';
+      } else if (result.status === 'DSQ') {
+        status = 'DSQ';
+      } else if (!result.position) {
+        status = 'DNF'; // Fallback per sicurezza
+      }
 
       const dataToSave = {
-        position: result.position || null,
+        position: finalPosition, // Usiamo la posizione calcolata!
         points: result.points || 0,
         status,
         time: result.time || null,
@@ -712,12 +750,16 @@ export class MotoGPApiService {
 
       allSessionResults.forEach(result => {
         const category = result.rider.category;
+        
+        // TRUCCHETTO INVERSO: Per il calcolo base del FantaMotoGP, trattiamo le posizioni > 100 come DNF/null
+        const effectivePosition = (result.position && result.position < 100) ? result.position : null;
+
         if (result.session === 'RACE') {
-          raceResultsMap.set(result.riderId, { position: result.position, status: result.status });
-          if (result.position) maxPositions[category].race = Math.max(maxPositions[category].race, result.position);
+          raceResultsMap.set(result.riderId, { position: effectivePosition, status: result.status });
+          if (effectivePosition) maxPositions[category].race = Math.max(maxPositions[category].race, effectivePosition);
         } else if (result.session === 'SPRINT') {
-          sprintResultsMap.set(result.riderId, { position: result.position, status: result.status });
-          if (result.position) maxPositions[category].sprint = Math.max(maxPositions[category].sprint, result.position);
+          sprintResultsMap.set(result.riderId, { position: effectivePosition, status: result.status });
+          if (effectivePosition) maxPositions[category].sprint = Math.max(maxPositions[category].sprint, effectivePosition);
         }
       });
       
