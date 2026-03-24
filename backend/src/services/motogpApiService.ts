@@ -27,9 +27,9 @@ const statusWeight: Record<string, number> = {
   'FINISHED': 0,
   'INSTND': 0,
   'OUTSTND': 1,           // Ritirato a gara in corso
-  'NOTFINISHFIRST': 2,    // Caduto al primo giro
-  'NOTSTARTED': 3,        // DNS / Non partito
-  'NOTONRESTARTGRID': 4,  // Non presentatosi in griglia alla ripartenza
+  "NOTONRESTARTGRID": 2,  // Non presentatosi in griglia alla ripartenza
+  "NOTSTARTED": 3,        // DNS / Non partito
+  "NOTFINISHFIRST": 4,     // Primo giro non completato
   'DNS': 5,
   'DSQ': 6
 };
