@@ -377,3 +377,38 @@ export const deleteLatestRaceResults = async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Errore durante la cancellazione dei risultati dell\'ultima gara.' });
   }
 };
+
+export const deleteRaceResults = async (req: Request, res: Response) => {
+  const { raceId } = req.params;
+
+  try {
+    console.log(`🗑️ [DELETE-RESULTS] Richiesta cancellazione risultati per la gara ID: ${raceId}`);
+
+    // Verifica che la gara esista nel database
+    const race = await prisma.race.findUnique({
+      where: { id: raceId }
+    });
+
+    if (!race) {
+      console.log(`ℹ️ [DELETE-RESULTS] Gara non trovata (ID: ${raceId}).`);
+      return res.status(404).json({ success: false, message: 'Gara non trovata.' });
+    }
+
+    // Cancella TUTTI i risultati associati a quello specifico raceId
+    const { count } = await prisma.raceResult.deleteMany({
+      where: { raceId: race.id }
+    });
+
+    console.log(`✅ [DELETE-RESULTS] Operazione completata. Cancellati ${count} record per la gara ${race.name}.`);
+    
+    return res.status(200).json({ 
+      success: true, 
+      message: `Cancellati ${count} risultati per la gara ${race.name}.`,
+      deletedCount: count
+    });
+
+  } catch (error: any) {
+    console.error(`❌ [DELETE-RESULTS] Errore critico per la gara ID ${raceId}:`, error);
+    return res.status(500).json({ error: 'Errore durante la cancellazione dei risultati della gara specificata.' });
+  }
+};
