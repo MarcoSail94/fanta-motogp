@@ -2,6 +2,7 @@
 import { Request, Response } from 'express';
 import { raceWeekendDetector } from '../services/raceWeekendDetector';
 import { PrismaClient } from '@prisma/client';
+import { AuthRequest } from '../middleware/auth';
 
 const prisma = new PrismaClient();
 
@@ -323,5 +324,52 @@ export const checkIsRaceWeekend = async (req: Request, res: Response) => {
       error: 'Errore nel controllo del weekend di gara',
       isRaceWeekend: false 
     });
+  }
+};
+
+// GET /api/races/latest-scores-status
+export const getLatestRaceScoresStatus = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+    const now = new Date();
+    
+    // Calcoliamo la data limite di "2 giorni fa" (48 ore in millisecondi)
+    const dueGiorniFa = new Date(now.getTime() - (48 * 60 * 60 * 1000));
+
+    // 1. Trova l'ultima gara passata (conclusa PRIMA di adesso, ma DOPO dueGiorniFa)
+    const lastRace = await prisma.race.findFirst({
+      where: {
+        endDate: { 
+          lt: now, 
+          gte: dueGiorniFa // La gara deve essersi conclusa nelle ultime 48 ore
+        },
+      },
+      orderBy: { gpDate: 'desc' },
+    });
+
+    // Se non c'è nessuna gara conclusa negli ultimi 2 giorni, nascondiamo il banner
+    if (!lastRace) {
+      return res.json({ hasNewScores: false });
+    }
+
+    // 2. Controlla se esistono dei TeamScore per QUESTA gara per l'utente corrente
+    const scoresCount = await prisma.teamScore.count({
+      where: {
+        raceId: lastRace.id,
+        team: {
+          userId: userId
+        }
+      }
+    });
+
+    res.json({ 
+      lastRaceId: lastRace.id,
+      lastRaceName: lastRace.name,
+      hasNewScores: scoresCount > 0 
+    });
+
+  } catch (error) {
+    console.error('Errore nel controllo dei punteggi recenti:', error);
+    res.status(500).json({ error: 'Errore interno' });
   }
 };

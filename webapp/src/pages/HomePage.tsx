@@ -1,12 +1,12 @@
 // webapp/src/pages/HomePage.tsx
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getMyLeagues, getMyTeams, getUpcomingRaces } from '../services/api';
+import { getMyLeagues, getMyTeams, getUpcomingRaces, getLatestRaceScoresStatus } from '../services/api';
 import {
   Box, Typography, Grid, Paper, Button, Stack, Chip, Skeleton, Avatar, useTheme
 } from '@mui/material';
 import {
-  SportsScore, ArrowForward, EmojiEvents, AccessTime, Flag
+  SportsScore, ArrowForward, EmojiEvents, AccessTime, Flag, Assessment
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { differenceInDays, differenceInHours, differenceInMinutes } from 'date-fns';
@@ -16,6 +16,8 @@ export default function HomePage() {
   const theme = useTheme();
 
   const { data: racesData, isLoading: loadingRaces } = useQuery({ queryKey: ['upcomingRaces'], queryFn: getUpcomingRaces });
+  const { data: scoresStatus } = useQuery({ queryKey: ['latestScoresStatus'], queryFn: getLatestRaceScoresStatus });
+  
   const { data: leaguesData, isLoading: loadingLeagues } = useQuery({ queryKey: ['myLeagues'], queryFn: getMyLeagues });
   const { data: teamsData, isLoading: loadingTeams } = useQuery({ queryKey: ['myTeams'], queryFn: getMyTeams });
 
@@ -41,7 +43,6 @@ export default function HomePage() {
       if (now >= targetDate) {
         setTimeLeft({ days: 0, hours: 0, minutes: 0 });
         clearInterval(timer);
-        // Forza un re-render o lascia che il prossimo ciclo di react aggiorni isLocked
         return;
       }
       
@@ -76,6 +77,49 @@ export default function HomePage() {
 
   return (
     <Box className="fade-in">
+
+      {/* Banner Punteggi Calcolati Disponibili */}
+      {scoresStatus?.hasNewScores && (
+        <Paper
+          sx={{
+            p: { xs: 2, sm: 3 },
+            mb: 3,
+            borderRadius: 3,
+            background: `linear-gradient(135deg, ${theme.palette.success.dark} 0%, #1A2E1A 100%)`,
+            border: `1px solid ${theme.palette.success.main}55`,
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            justifyContent: 'space-between',
+            alignItems: { xs: 'flex-start', sm: 'center' },
+            gap: 2,
+            boxShadow: `0 8px 32px ${theme.palette.success.main}22`,
+          }}
+        >
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Avatar sx={{ bgcolor: 'success.main', width: 48, height: 48 }}>
+              <Assessment fontSize="medium" sx={{ color: 'white' }} />
+            </Avatar>
+            <Box>
+              <Typography variant="h6" fontWeight="bold" color="white" lineHeight={1.2}>
+                Fanta Punteggi Aggiornati!
+              </Typography>
+              <Typography variant="body2" color="success.light" sx={{ mt: 0.5 }}>
+                I punteggi del <strong>{scoresStatus.lastRaceName}</strong> sono stati appena calcolati per i tuoi team.
+              </Typography>
+            </Box>
+          </Stack>
+          <Button
+            variant="contained"
+            color="success"
+            endIcon={<ArrowForward />}
+            onClick={() => navigate(`/teams`)} 
+            sx={{ fontWeight: 'bold', width: { xs: '100%', sm: 'auto' } }}
+          >
+            Vedi Punteggi Team
+          </Button>
+        </Paper>
+      )}
+
       {/* Hero Section con Animazione e Texture */}
       <Paper
         sx={{
