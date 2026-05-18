@@ -64,3 +64,4 @@ mobile-app/web-build/
 backend/prisma/migrations/*
 mobile-app/package-lock.json
 backend/package-lock.json
+backend/scripts/triggerMatrixSync.ts
