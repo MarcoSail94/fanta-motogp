@@ -23,9 +23,6 @@
   ],
   "author": "Marco Lecci",
   "license": "ISC",
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
-  },
   "dependencies": {
     "@prisma/client": "^6.13.0",
     "axios": "^1.6.0",
