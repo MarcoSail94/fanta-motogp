@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getMyLeagues, getMyTeams, getUpcomingRaces, getLatestRaceScoresStatus } from '../services/api';
+import { queryKeys } from '../services/queryKeys';
 import {
   Box, Typography, Grid, Paper, Button, Stack, Chip, Skeleton, Avatar, useTheme
 } from '@mui/material';
@@ -15,11 +16,11 @@ export default function HomePage() {
   const navigate = useNavigate();
   const theme = useTheme();
 
-  const { data: racesData, isLoading: loadingRaces } = useQuery({ queryKey: ['upcomingRaces'], queryFn: getUpcomingRaces });
-  const { data: scoresStatus } = useQuery({ queryKey: ['latestScoresStatus'], queryFn: getLatestRaceScoresStatus });
+  const { data: racesData, isLoading: loadingRaces } = useQuery({ queryKey: queryKeys.races.upcoming, queryFn: getUpcomingRaces });
+  const { data: scoresStatus } = useQuery({ queryKey: queryKeys.races.latestScoresStatus, queryFn: getLatestRaceScoresStatus });
   
-  const { data: leaguesData, isLoading: loadingLeagues } = useQuery({ queryKey: ['myLeagues'], queryFn: getMyLeagues });
-  const { data: teamsData, isLoading: loadingTeams } = useQuery({ queryKey: ['myTeams'], queryFn: getMyTeams });
+  const { data: leaguesData, isLoading: loadingLeagues } = useQuery({ queryKey: queryKeys.leagues.mine, queryFn: getMyLeagues });
+  const { data: teamsData, isLoading: loadingTeams } = useQuery({ queryKey: queryKeys.teams.mine, queryFn: getMyTeams });
 
   const nextRace = racesData?.races?.[0];
   const leagues = leaguesData?.leagues || [];

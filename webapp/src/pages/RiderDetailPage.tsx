@@ -4,6 +4,7 @@ import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getRiderById } from '../services/api';
+import { queryKeys } from '../services/queryKeys';
 import {
   Box,
   Typography,
@@ -23,7 +24,7 @@ export default function RiderDetailPage() {
   const { riderId } = useParams<{ riderId: string }>();
 
   const { data: riderData, isLoading, error } = useQuery({
-    queryKey: ['riderDetails', riderId],
+    queryKey: queryKeys.riders.detail(riderId),
     queryFn: () => getRiderById(riderId!),
     enabled: !!riderId,
   });

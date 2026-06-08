@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { getPastRacesWithStatus, getResultsTemplate, postRaceResults } from '../../services/api';
 import { useNotification } from '../../contexts/NotificationContext';
+import { queryKeys } from '../../services/queryKeys';
 
 interface Race {
   id: string;
@@ -34,12 +35,12 @@ export default function RaceResultsManager() {
   const [results, setResults] = useState<RiderResult[]>([]);
 
   const { data: racesData, isLoading: isLoadingRaces } = useQuery<{ races: Race[] }>({
-    queryKey: ['adminRaces'],
+    queryKey: queryKeys.admin.races,
     queryFn: getPastRacesWithStatus,
   });
 
   const { data: templateData, isLoading: isLoadingTemplate } = useQuery({
-    queryKey: ['resultsTemplate', selectedRace?.id, selectedCategory],
+    queryKey: queryKeys.admin.resultsTemplate(selectedRace?.id, selectedCategory),
     queryFn: () => getResultsTemplate(selectedRace!.id, selectedCategory),
     enabled: !!selectedRace,
   });
@@ -54,7 +55,10 @@ export default function RaceResultsManager() {
     mutationFn: (data: { raceId: string; results: RiderResult[], session: 'RACE' | 'SPRINT' }) => postRaceResults(data),
     onSuccess: () => {
       notify('Risultati salvati e punteggi ricalcolati!', 'success');
-      queryClient.invalidateQueries({ queryKey: ['adminRaces'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.races });
+      queryClient.invalidateQueries({ queryKey: queryKeys.races.resultsRoot });
+      queryClient.invalidateQueries({ queryKey: queryKeys.races.qualifyingRoot });
+      queryClient.invalidateQueries({ queryKey: queryKeys.leagues.lineupsRoot });
       setSelectedRace(null);
       setResults([]);
     },

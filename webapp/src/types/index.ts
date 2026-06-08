@@ -1,29 +1,58 @@
-// src/types/index.ts
+export type Category = 'MOTOGP' | 'MOTO2' | 'MOTO3';
+export type RiderType = 'OFFICIAL' | 'REPLACEMENT' | 'WILDCARD' | 'TEST_RIDER';
+export type SessionType = 'SPRINT' | 'RACE' | 'QUALIFYING' | 'FP1' | 'FP2' | 'PR';
+export type RaceStatus = 'FINISHED' | 'DNF' | 'DNS' | 'DSQ';
+export type LeagueRole = 'ADMIN' | 'MEMBER';
+export type LineupVisibility = 'ALWAYS_VISIBLE' | 'AFTER_DEADLINE';
 
-// User types
 export interface User {
   id: string;
   email: string;
   username: string;
   credits: number;
-  createdAt: string;
-  updatedAt: string;
+  isAdmin?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-// Rider types
 export interface Rider {
   id: string;
   name: string;
   number: number;
-  category: 'MOTOGP' | 'MOTO2' | 'MOTO3';
-  value: number;
-  riderType: string;
   team: string;
+  category: Category;
+  nationality?: string;
+  value: number;
+  photoUrl?: string | null;
+  isActive?: boolean;
+  riderType: RiderType;
   totalPoints?: number;
   averagePoints?: number;
 }
 
-// Team types
+export interface TeamRider {
+  id?: string;
+  teamId?: string;
+  riderId: string;
+  purchasePrice?: number;
+  rider: Rider;
+}
+
+export interface League {
+  id: string;
+  name: string;
+  code: string;
+  isPrivate: boolean;
+  maxTeams: number;
+  budget: number;
+  teamsLocked: boolean;
+  lineupVisibility?: LineupVisibility;
+  currentTeams?: number;
+  createdAt?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
 export interface Team {
   id: string;
   name: string;
@@ -31,141 +60,86 @@ export interface Team {
   leagueId: string;
   league: League;
   riders: TeamRider[];
-  totalPoints: number;
-  remainingBudget: number;
-  createdAt: string;
-  updatedAt: string;
+  totalPoints?: number;
+  remainingBudget?: number;
+  startingPoints?: number;
   hasLineup?: boolean;
-  lastRacePoints?: number;
-  position?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export interface TeamRider {
-  teamId: string;
-  riderId: string;
-  rider: Rider;
-  joinedAt: string;
-}
-
-// League types
-export interface League {
-  id: string;
-  name: string;
-  code: string;
-  ownerId: string;
-  isPrivate: boolean;
-  maxTeams: number;
-  currentTeams: number;
-  budget: number;
-  scoringRules?: any;
-  prizePool?: number;
-  teamsLocked: boolean;
-  currentRound?: number;
-  totalPrizePool?: number;
-  createdAt: string;
-  updatedAt: string;
-  userPosition?: number;
-  userPoints?: number;
-  hasTeam?: boolean;
-}
-
-// Race types
 export interface Race {
   id: string;
   name: string;
   circuit: string;
   country: string;
+  startDate: string;
+  endDate: string;
   gpDate: string;
-  sprintDate?: string;
+  sprintDate?: string | null;
   round: number;
   season: number;
-  status: 'SCHEDULED' | 'LIVE' | 'FINISHED';
-  createdAt: string;
-  updatedAt: string;
+  trackLayoutUrl?: string | null;
+  hasResults?: boolean;
 }
 
-// Lineup types
-export interface Lineup {
+export interface LineupRider {
+  id: string;
+  lineupId?: string;
+  riderId: string;
+  rider: Rider;
+  predictedPosition: number;
+}
+
+export interface RaceLineup {
   id: string;
   teamId: string;
   raceId: string;
-  activeRiderIds: string[];
-  captainId?: string;
-  points?: number;
-  createdAt: string;
-  updatedAt: string;
+  isFallback?: boolean;
+  lineupRiders: LineupRider[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-// Standing types
+export interface RaceResult {
+  id: string;
+  raceId: string;
+  riderId: string;
+  rider: Rider;
+  session: SessionType;
+  position: number | null;
+  points: number;
+  status: RaceStatus;
+  time?: string | null;
+  totalLaps?: number | null;
+  bestLap?: unknown;
+}
+
 export interface Standing {
   teamId: string;
   teamName: string;
   userId: string;
   userName: string;
   totalPoints: number;
-  lastRacePoints?: number;
+  lastRacePoints?: number | null;
+  gamesPlayed?: number;
   position?: number;
-  trend?: 'up' | 'down' | 'same';
-  riders?: TeamRider[];
+  trend?: 'up' | 'down' | 'same' | null;
 }
 
-// Result types
-export interface RaceResult {
-  id: string;
-  raceId: string;
-  riderId: string;
-  position: number;
-  points: number;
-  status: 'FINISHED' | 'DNF' | 'DNS' | 'DSQ';
-  fastestLap?: boolean;
-  polePosition?: boolean;
-  rider: Rider;
-}
-
-export interface TeamRaceResult {
-  teamId: string;
-  raceId: string;
-  totalPoints: number;
-  riderResults: {
-    riderId: string;
-    points: number;
-    isCaptain: boolean;
-    rider: Rider;
-  }[];
-}
-
-// API Response types
 export interface ApiResponse<T> {
-  data: T;
+  data?: T;
+  success?: boolean;
   message?: string;
   error?: string;
 }
 
 export interface PaginatedResponse<T> {
   data: T[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
-// Form types
-export interface CreateTeamForm {
-  name: string;
-  leagueId: string;
-  riderIds: string[];
-}
-
-export interface CreateLeagueForm {
-  name: string;
-  isPrivate: boolean;
-  maxTeams: number;
-  budget: number;
-  scoringRules?: any;
-}
-
-export interface LineupForm {
-  teamId: string;
-  activeRiderIds: string[];
-  captainId?: string;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }

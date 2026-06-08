@@ -1,6 +1,7 @@
 import React from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { syncRiders, syncCalendar } from '../../services/api';
+import { queryKeys } from '../../services/queryKeys';
 import { useNotification } from '../../contexts/NotificationContext';
 import { Card, CardContent, Typography, Button, Stack, CircularProgress, Box } from '@mui/material';
 import { Sync, People, CalendarMonth } from '@mui/icons-material';
@@ -13,7 +14,8 @@ export default function RiderSyncManager() {
     mutationFn: syncRiders,
     onSuccess: () => {
       notify('Sincronizzazione piloti avviata in background.', 'success');
-      queryClient.invalidateQueries({ queryKey: ['allRiders'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.riders.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.riders.list });
     },
     onError: () => notify('Errore durante la sincronizzazione dei piloti.', 'error'),
   });
@@ -22,7 +24,8 @@ export default function RiderSyncManager() {
     mutationFn: (year: number) => syncCalendar(year),
     onSuccess: () => {
       notify('Sincronizzazione calendario avviata in background.', 'success');
-      queryClient.invalidateQueries({ queryKey: ['allRaces'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.races.allRoot });
+      queryClient.invalidateQueries({ queryKey: queryKeys.races.upcoming });
     },
     onError: () => notify('Errore durante la sincronizzazione del calendario.', 'error'),
   });

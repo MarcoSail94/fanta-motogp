@@ -1,25 +1,16 @@
 // webapp/src/pages/RaceCalendarPage.tsx
 import { useQuery } from '@tanstack/react-query';
 import { getAllRaces } from '../services/api';
+import { queryKeys } from '../services/queryKeys';
+import type { Race } from '../types';
 import { Box, Typography, CircularProgress, Alert, Grid } from '@mui/material';
 import { RaceEventCard } from '../components/RaceEventCard';
 
-interface Race {
-  id: string;
-  name: string;
-  circuit: string;
-  country: string;
-  gpDate: string;
-  startDate: string;
-  endDate: string;
-  round: number;
-  sprintDate?: string;
-}
-
 export default function RaceCalendarPage() {
+  const currentYear = new Date().getFullYear();
   const { data: racesData, isLoading, error } = useQuery<{ races: Race[] }>({
-    queryKey: ['allRaces', new Date().getFullYear()],
-    queryFn: () => getAllRaces(new Date().getFullYear()),
+    queryKey: queryKeys.races.all(currentYear),
+    queryFn: () => getAllRaces(currentYear),
   });
 
   if (isLoading) {
@@ -39,7 +30,7 @@ export default function RaceCalendarPage() {
   return (
     <Box>
       <Typography variant="h4" gutterBottom sx={{ mb: 3 }}>
-        Calendario Gare {new Date().getFullYear()}
+        Calendario Gare {currentYear}
       </Typography>
       
       <Grid container spacing={3} alignItems="stretch" >
@@ -56,7 +47,7 @@ export default function RaceCalendarPage() {
             Nessuna gara disponibile
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Il calendario per l'anno {new Date().getFullYear()} non è ancora disponibile.
+            Il calendario per l'anno {currentYear} non è ancora disponibile.
           </Typography>
         </Box>
       )}

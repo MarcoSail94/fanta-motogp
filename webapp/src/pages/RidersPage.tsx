@@ -2,6 +2,8 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getRiders } from '../services/api';
+import { queryKeys } from '../services/queryKeys';
+import type { Rider } from '../types';
 import {
   Box,
   Typography,
@@ -17,18 +19,6 @@ import {
 import { Search } from '@mui/icons-material';
 import { RiderCard } from '../components/RiderCard';
 
-interface Rider {
-  id: string;
-  name: string;
-  number: number;
-  team: string;
-  category: 'MOTOGP' | 'MOTO2' | 'MOTO3';
-  nationality: string;
-  value: number;
-  photoUrl?: string | null;
-  riderType: 'OFFICIAL' | 'REPLACEMENT' | 'WILDCARD' | 'TEST_RIDER';
-}
-
 const PageTitle = ({ title }: { title: string }) => (
     <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
         <Box sx={{ height: '40px', width: '6px', bgcolor: 'primary.main', mr: 2 }} />
@@ -43,7 +33,7 @@ export default function RidersPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: ridersData, isLoading, error } = useQuery<{ riders: Rider[] }>({
-    queryKey: ['allRiders'],
+    queryKey: queryKeys.riders.all,
     queryFn: () => getRiders({ limit: 200 }),
   });
 

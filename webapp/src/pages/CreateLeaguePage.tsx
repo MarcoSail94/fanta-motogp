@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createLeague } from '../services/api';
+import { queryKeys } from '../services/queryKeys';
 import { Box, Typography, Card, CardContent, TextField, Button, Stack,
   FormControlLabel, Switch, Slider, Grid, Paper, CircularProgress
 } from '@mui/material';
@@ -21,7 +22,7 @@ export default function CreateLeaguePage() {
   const createLeagueMutation = useMutation({
     mutationFn: createLeague,
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['myLeagues'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.leagues.mine });
       notify('Lega creata con successo!', 'success');
       navigate(`/leagues/${data.league.id}`);
     },

@@ -2,19 +2,7 @@ import React from 'react';
 import { Card, CardActionArea, CardMedia, Typography, Box, Chip, Stack } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { Euro, Speed, Star } from '@mui/icons-material';
-
-interface Rider {
-  id: string;
-  name: string;
-  number: number;
-  team: string;
-  category: 'MOTOGP' | 'MOTO2' | 'MOTO3';
-  nationality: string;
-  value: number;
-  photoUrl?: string | null;
-  totalPoints?: number;
-  averagePoints?: number;
-}
+import type { Rider } from '../types';
 
 const categoryColors = {
   MOTOGP: '#E60023',

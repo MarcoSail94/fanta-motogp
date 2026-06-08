@@ -8,12 +8,12 @@ import {
   CircularProgress, Tabs, Tab, Dialog, DialogTitle, DialogContent,
   DialogActions, Switch, FormControlLabel, Select, MenuItem, FormControl,
   InputLabel, Stack, Divider, List, ListItem, ListItemText, ListItemAvatar,
-  IconButton, Tooltip, LinearProgress, useTheme, useMediaQuery, Collapse
+  IconButton, Tooltip, useTheme, useMediaQuery
 } from '@mui/material';
 import {
   TrendingUp, TrendingDown, Remove, Groups, Settings, Share, Lock,
   ContentCopy, NotificationsActive, EmojiEvents, WorkspacePremium,
-  BarChart, Refresh, SportsMotorsports, Timer, ExpandMore, ExpandLess, Info, Flag
+  BarChart, Refresh, SportsMotorsports, Timer, Info, Flag
 } from '@mui/icons-material';
 import { format, isPast, differenceInDays, differenceInHours } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -25,157 +25,16 @@ import {
   getAllRaces,
   getLineup
 } from '../services/api';
+import { queryKeys } from '../services/queryKeys';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { ScoreBreakdownDialog } from '../components/ScoreBreakdownDialog';
 import { useRealTimeUpdates } from '../hooks/useRealTimeUpdates';
 import { LeagueSeasonReset } from '../components/LeagueSeasonReset';
-
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      {...other}
-    >
-      {value === index && <Box sx={{ py: { xs: 2, sm: 3 } }}>{children}</Box>}
-    </div>
-  );
-}
-
-// Componente Mobile per visualizzare una posizione in classifica
-function MobileStandingCard({ standing, position, isUserTeam, gapPrev, gapNext }: {
-  standing: any;
-  position: number;
-  isUserTeam: boolean;
-  gapPrev: number | null;
-  gapNext: number | null;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const isPodium = position <= 3;
-
-  return (
-    <Card
-      sx={{
-        mb: 1,
-        borderLeft: isPodium ? 4 : 0,
-        borderColor: isPodium ?
-          (position === 1 ? '#FFD700' : position === 2 ? '#C0C0C0' : '#CD7F32')
-          : 'transparent',
-        backgroundColor: isUserTeam ? 'action.selected' : 'inherit'
-      }}
-    >
-      <Box
-        sx={{
-          p: 1.5,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.5
-        }}
-        onClick={() => setExpanded(!expanded)}
-      >
-        {/* Posizione */}
-        <Box
-          sx={{
-            minWidth: 40,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center'
-          }}
-        >
-          {isPodium && (
-            <WorkspacePremium
-              sx={{
-                fontSize: 20,
-                color: position === 1 ? '#FFD700' :
-                       position === 2 ? '#C0C0C0' : '#CD7F32'
-              }}
-            />
-          )}
-          <Typography
-            variant={isPodium ? "h6" : "body1"}
-            fontWeight={isPodium ? "bold" : "medium"}
-          >
-            {position}
-          </Typography>
-        </Box>
-
-        {/* Nome Team e Manager */}
-        <Box sx={{ flexGrow: 1 }}>
-          <Typography variant="body2" fontWeight="medium">
-            {standing.teamName}
-            {isUserTeam && (
-              <Chip
-                label="Tu"
-                size="small"
-                color="primary"
-                sx={{ ml: 1, height: 18, fontSize: '0.65rem' }}
-              />
-            )}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {standing.userName}
-          </Typography>
-        </Box>
-
-        {/* Punti */}
-        <Box sx={{ textAlign: 'right', mr: 1 }}>
-          <Typography variant="h6" fontWeight="bold" color="primary">
-            {standing.totalPoints || 0}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            punti
-          </Typography>
-        </Box>
-
-        {/* Expand Icon */}
-        <IconButton size="small">
-          {expanded ? <ExpandLess /> : <ExpandMore />}
-        </IconButton>
-      </Box>
-
-      {/* Dettagli Espansi */}
-      <Collapse in={expanded}>
-        <Divider />
-        <Box sx={{ p: 1.5, backgroundColor: 'action.hover' }}>
-          <Grid container spacing={1}>
-            <Grid size={{ xs: 4}}>
-              <Typography variant="caption" color="text.secondary">
-                Ultima Gara
-              </Typography>
-              <Typography variant="body2">
-                {standing.lastRacePoints ? `+${standing.lastRacePoints} pt` : '-'}
-              </Typography>
-            </Grid>
-            <Grid size={{ xs: 4}}>
-              <Typography variant="caption" color="text.secondary">
-                Gap Prec.
-              </Typography>
-              <Typography variant="body2" color={gapPrev !== null ? 'error.main' : 'text.secondary'}>
-                {gapPrev !== null ? `+${gapPrev}` : '-'}
-              </Typography>
-            </Grid>
-            <Grid size={{ xs: 4}}>
-              <Typography variant="caption" color="text.secondary">
-                Gap Succ.
-              </Typography>
-               <Typography variant="body2" color={gapNext !== null ? 'success.main' : 'text.secondary'}>
-                {gapNext !== null ? `-${gapNext}` : '-'}
-              </Typography>
-            </Grid>
-          </Grid>
-        </Box>
-      </Collapse>
-    </Card>
-  );
-}
+import { LeagueStatsTab } from '../components/league/LeagueStatsTab';
+import { LeagueTabPanel } from '../components/league/LeagueTabPanel';
+import { MobileStandingCard } from '../components/league/MobileStandingCard';
+import type { LeagueStanding } from '../components/league/MobileStandingCard';
 
 export default function LeagueDetailPage() {
   const { leagueId } = useParams<{ leagueId: string }>();
@@ -194,6 +53,7 @@ export default function LeagueDetailPage() {
   const [selectedLineup, setSelectedLineup] = useState<any>(null);
   const [selectedRaceId, setSelectedRaceId] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
+  const currentYear = new Date().getFullYear();
 
   // State per impostazioni lega
   const [teamsLocked, setTeamsLocked] = useState(false);
@@ -208,27 +68,27 @@ export default function LeagueDetailPage() {
 
   // Query dati lega
   const { data: leagueData, isLoading: loadingLeague, refetch: refetchLeague } = useQuery({
-    queryKey: ['league', leagueId],
+    queryKey: queryKeys.leagues.detail(leagueId),
     queryFn: () => getLeagueDetails(leagueId!),
     enabled: !!leagueId
   });
 
   // Query mio team nella lega
   const { data: myTeamData } = useQuery({
-    queryKey: ['myTeamInLeague', leagueId],
+    queryKey: queryKeys.teams.myInLeague(leagueId),
     queryFn: () => getMyTeamInLeague(leagueId!),
     enabled: !!leagueId
   });
 
   // Query per tutte le gare della stagione
   const { data: racesData } = useQuery({
-    queryKey: ['allRaces', new Date().getFullYear()],
-    queryFn: () => getAllRaces(new Date().getFullYear()),
+    queryKey: queryKeys.races.all(currentYear),
+    queryFn: () => getAllRaces(currentYear),
   });
 
   // Query lineup per gara selezionata (per visualizzazione)
   const { data: lineupsData, isLoading: loadingLineups } = useQuery({
-    queryKey: ['leagueRaceLineups', leagueId, selectedRaceId],
+    queryKey: queryKeys.leagues.lineups(leagueId, selectedRaceId),
     queryFn: () => getLeagueRaceLineups(leagueId!, selectedRaceId!),
     enabled: !!leagueId && !!selectedRaceId
   });
@@ -248,7 +108,7 @@ export default function LeagueDetailPage() {
   }, [deadline]);
 
   const { data: nextRaceLineupData } = useQuery({
-    queryKey: ['lineup', myTeam?.id, nextRace?.id],
+    queryKey: queryKeys.lineups.detail(myTeam?.id, nextRace?.id),
     queryFn: () => getLineup(myTeam!.id, nextRace!.id),
     enabled: !!myTeam && !!nextRace,
   });
@@ -258,7 +118,7 @@ export default function LeagueDetailPage() {
     mutationFn: (settings: any) => updateLeagueSettings(leagueId!, settings),
     onSuccess: () => {
       notify('Impostazioni aggiornate con successo', 'success');
-      queryClient.invalidateQueries({ queryKey: ['league', leagueId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.leagues.detail(leagueId) });
       setShowSettings(false);
     },
     onError: (error: any) => {
@@ -277,7 +137,7 @@ export default function LeagueDetailPage() {
   // Seleziona automaticamente la gara più recente o la prossima
   useEffect(() => {
     if (racesData?.races && !selectedRaceId) {
-        const races = racesData.races.sort((a: any, b: any) => new Date(a.gpDate).getTime() - new Date(b.gpDate).getTime());
+        const races = [...racesData.races].sort((a: any, b: any) => new Date(a.gpDate).getTime() - new Date(b.gpDate).getTime());
         const now = new Date();
         
         // Trova l'indice della prossima gara
@@ -303,7 +163,7 @@ export default function LeagueDetailPage() {
   }, [racesData, selectedRaceId]);
 
   const league = leagueData?.league;
-  const standings = league?.standings || [];
+  const standings: LeagueStanding[] = league?.standings || [];
   const isAdmin = league?.isAdmin;
   const userHasTeam = !!myTeam;
   
@@ -665,7 +525,7 @@ export default function LeagueDetailPage() {
       </Paper>
 
       {/* Tab: Classifica - Responsive */}
-      <TabPanel value={selectedTab} index={0}>
+      <LeagueTabPanel value={selectedTab} index={0}>
         {isMobile ? (
           // Layout Mobile - Cards
           <Box>
@@ -781,10 +641,10 @@ export default function LeagueDetailPage() {
             </Table>
           </TableContainer>
         )}
-      </TabPanel>
+      </LeagueTabPanel>
 
       {/* Tab: Lineup Gara - Responsive */}
-      <TabPanel value={selectedTab} index={1}>
+      <LeagueTabPanel value={selectedTab} index={1}>
         {/* Selettore Gara */}
         <Box mb={3}>
           <FormControl fullWidth size={isMobile ? "small" : "medium"}>
@@ -923,156 +783,16 @@ export default function LeagueDetailPage() {
             ))}
           </Grid>
         )}
-      </TabPanel>
+      </LeagueTabPanel>
 
       {/* Tab: Statistiche - Responsive */}
-      <TabPanel value={selectedTab} index={2}>
-        <Grid container spacing={isMobile ? 2 : 3}>
-          {/* Top Scorer per Gara */}
-          <Grid size={{ xs: 12, md: 6}}>
-            <Card>
-              <CardContent>
-                <Typography
-                  variant={isMobile ? "subtitle1" : "h6"}
-                  gutterBottom
-                  fontWeight="bold"
-                >
-                  Top Scorer per Gara
-                </Typography>
-                <List dense={isMobile}>
-                  {leagueData?.raceStats?.map((stat: any) => (
-                    <ListItem key={stat.raceId}>
-                      <ListItemText
-                        primary={stat.raceName}
-                        secondary={`Winner: ${stat.topTeam} - ${stat.topPoints} pt`}
-                        primaryTypographyProps={{
-                          fontSize: isMobile ? '0.875rem' : '1rem'
-                        }}
-                      />
-                      <Chip
-                        label={format(new Date(stat.raceDate), 'dd/MM', { locale: it })}
-                        size="small"
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-                {(!leagueData?.raceStats || leagueData.raceStats.length === 0) && (
-                  <Typography variant="body2" color="text.secondary">
-                    Nessuna statistica disponibile
-                  </Typography>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Piloti più Scelti */}
-          <Grid size={{ xs: 12, md: 6}}>
-            <Card>
-              <CardContent>
-                <Typography
-                  variant={isMobile ? "subtitle1" : "h6"}
-                  gutterBottom
-                  fontWeight="bold"
-                >
-                  Piloti più Scelti
-                </Typography>
-                <List dense={isMobile}>
-                  {leagueData?.popularRiders?.slice(0, 5).map((rider: any, idx: number) => (
-                    <ListItem key={rider.riderId}>
-                      <ListItemAvatar>
-                        <Avatar sx={{ width: 32, height: 32, fontSize: '0.875rem' }}>
-                          {idx + 1}
-                        </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={rider.riderName}
-                        secondary={
-                          <Box>
-                            <LinearProgress
-                              variant="determinate"
-                              value={(rider.teamCount / league.currentTeams) * 100}
-                              sx={{ mt: 1, height: 6 }}
-                            />
-                            <Typography
-                              variant="caption"
-                              sx={{ fontSize: isMobile ? '0.65rem' : '0.75rem' }}
-                            >
-                              {rider.teamCount}/{league.currentTeams} team ({Math.round((rider.teamCount / league.currentTeams) * 100)}%)
-                            </Typography>
-                          </Box>
-                        }
-                        primaryTypographyProps={{
-                          fontSize: isMobile ? '0.875rem' : '1rem'
-                        }}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Media Punti per Categoria */}
-          <Grid size={12}>
-            <Card>
-              <CardContent>
-                <Typography
-                  variant={isMobile ? "subtitle1" : "h6"}
-                  gutterBottom
-                  fontWeight="bold"
-                >
-                  Performance Media per Categoria
-                </Typography>
-                <Grid container spacing={2}>
-                  {['MOTOGP', 'MOTO2', 'MOTO3'].map(category => {
-                    const stats = leagueData?.categoryStats?.[category] || { avg: 0, max: 0, min: 0 };
-                    return (
-                      <Grid key={category} size={{ xs: 12, sm: 4}}>
-                        <Paper sx={{ p: isMobile ? 1.5 : 2, textAlign: 'center' }}>
-                          <Typography
-                            variant="subtitle2"
-                            color="text.secondary"
-                            sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}
-                          >
-                            {category}
-                          </Typography>
-                          <Typography
-                            variant={isMobile ? "h5" : "h4"}
-                            color="primary"
-                          >
-                            {stats.avg.toFixed(1)}
-                          </Typography>
-                          <Typography
-                            variant="caption"
-                            display="block"
-                            sx={{ fontSize: isMobile ? '0.65rem' : '0.75rem' }}
-                          >
-                            Media punti
-                          </Typography>
-                          <Box display="flex" justifyContent="space-around" mt={1}>
-                            <Box>
-                              <Typography variant="caption" color="text.secondary">Min</Typography>
-                              <Typography variant="body2">{stats.min}</Typography>
-                            </Box>
-                            <Box>
-                              <Typography variant="caption" color="text.secondary">Max</Typography>
-                              <Typography variant="body2">{stats.max}</Typography>
-                            </Box>
-                          </Box>
-                        </Paper>
-                      </Grid>
-                    );
-                  })}
-                </Grid>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      </TabPanel>
+      <LeagueTabPanel value={selectedTab} index={2}>
+        <LeagueStatsTab leagueData={leagueData} league={league} isMobile={isMobile} />
+      </LeagueTabPanel>
 
       {/* Tab: Gestione (solo per admin) - Responsive */}
       {isAdmin && (
-        <TabPanel value={selectedTab} index={3}>
+        <LeagueTabPanel value={selectedTab} index={3}>
           <Grid container spacing={isMobile ? 2 : 3}>
             {/* Impostazioni Lega */}
             <Grid size={{ xs: 12, md: 6}}>
@@ -1276,7 +996,7 @@ export default function LeagueDetailPage() {
               </Card>
             </Grid>
           </Grid>
-        </TabPanel>
+        </LeagueTabPanel>
       )}
 
       {/* Dialog Invita Membri - Responsive */}

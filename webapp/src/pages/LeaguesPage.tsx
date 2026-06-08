@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getMyLeagues, getPublicLeagues, joinLeague } from '../services/api';
+import { queryKeys } from '../services/queryKeys';
 import { useNavigate } from 'react-router-dom';
 import { 
    Box, Typography, CircularProgress, Card, CardContent, CardActions,
@@ -322,12 +323,12 @@ export default function LeaguesPage() {
   const [speedDialOpen, setSpeedDialOpen] = useState(false);
 
   const { data: myLeaguesData, isLoading: loadingMyLeagues } = useQuery({
-    queryKey: ['myLeagues'],
+    queryKey: queryKeys.leagues.mine,
     queryFn: getMyLeagues,
   });
 
   const { data: publicLeaguesData, isLoading: loadingPublicLeagues } = useQuery({
-    queryKey: ['publicLeagues'],
+    queryKey: queryKeys.leagues.public,
     queryFn: getPublicLeagues,
     enabled: tabValue === 1,
   });
@@ -335,8 +336,8 @@ export default function LeaguesPage() {
   const joinLeagueMutation = useMutation({
     mutationFn: (code: string) => joinLeague(code),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myLeagues'] });
-      queryClient.invalidateQueries({ queryKey: ['publicLeagues'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.leagues.mine });
+      queryClient.invalidateQueries({ queryKey: queryKeys.leagues.public });
       setJoinDialogOpen(false);
       setJoinCode('');
       setTabValue(0);

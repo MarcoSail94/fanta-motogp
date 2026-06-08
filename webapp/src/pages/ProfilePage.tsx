@@ -59,6 +59,7 @@ import { it } from 'date-fns/locale';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { getProfile, getMyStats } from '../services/api';
+import { queryKeys } from '../services/queryKeys';
 import api from '../services/api';
 
 interface UserStats {
@@ -108,8 +109,8 @@ export default function ProfilePage() {
   });
 
   // Query profilo completo
-  const { data: profileData, isLoading: loadingProfile } = useQuery({
-    queryKey: ['profile'],
+  const { data: profileData, isLoading: loadingProfile, isError: profileError } = useQuery({
+    queryKey: queryKeys.auth.profile,
     queryFn: async () => {
       const response = await getProfile();
       return response.data || response;
@@ -117,8 +118,8 @@ export default function ProfilePage() {
   });
 
   // Query statistiche
-  const { data: statsData, isLoading: loadingStats } = useQuery({
-    queryKey: ['myStats'],
+  const { data: statsData, isLoading: loadingStats, isError: statsError } = useQuery({
+    queryKey: queryKeys.auth.stats,
     queryFn: getMyStats
   });
 
@@ -129,7 +130,7 @@ export default function ProfilePage() {
       notify('Profilo aggiornato con successo', 'success');
       updateUser(response.data.user);
       setEditMode(false);
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.auth.profile });
     },
     onError: (error: any) => {
       notify(error.response?.data?.error || 'Errore aggiornamento profilo', 'error');
@@ -196,12 +197,16 @@ export default function ProfilePage() {
     notify('Impostazioni aggiornate', 'success');
   };
 
-  if (loadingProfile || loadingStats) {
+  if (loadingProfile) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
         <CircularProgress />
       </Box>
     );
+  }
+
+  if (profileError && !user) {
+    return <Alert severity="error">Errore nel caricamento del profilo.</Alert>;
   }
 
   const stats: UserStats = statsData?.stats || {
@@ -252,7 +257,7 @@ export default function ProfilePage() {
                     <Typography variant="body2" color="text.secondary" gutterBottom>
                       {profileUser?.email}
                     </Typography>
-                    
+
                     <Box width="100%" mt={3}>
                       <List>
                         <ListItem>
@@ -293,7 +298,7 @@ export default function ProfilePage() {
                         </ListItem>
                       </List>
                     </Box>
-                    
+
                     <Button
                       variant="outlined"
                       startIcon={<Edit />}
@@ -322,7 +327,7 @@ export default function ProfilePage() {
                       onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
                       margin="normal"
                     />
-                    
+
                     <Stack direction="row" spacing={2} mt={3}>
                       <Button
                         variant="contained"
@@ -413,108 +418,119 @@ export default function ProfilePage() {
               <Typography variant="h6" gutterBottom>
                 Le Tue Statistiche
               </Typography>
-              
-              <Grid container spacing={3}>
-                <Grid size={{ xs: 6, sm: 4}}>
-                  <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'primary.lighter' }}>
-                    <EmojiEvents sx={{ fontSize: 30, color: 'primary.main', mb: 1 }} />
-                    <Typography variant="h5" fontWeight="bold">
-                      {stats.totalPoints}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Punti Totali
-                    </Typography>
-                  </Paper>
-                </Grid>
-                
-                <Grid size={{ xs: 12, sm: 4}}>
-                  <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'success.lighter' }}>
-                    <EmojiEvents sx={{ fontSize: 30, color: 'success.main', mb: 1 }} />
-                    <Typography variant="h5" fontWeight="bold">
-                      #{stats.bestPosition || '-'}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Miglior Posizione
-                    </Typography>
-                  </Paper>
-                </Grid>
-                
-                <Grid size={{ xs: 12, sm: 4}}>
-                  <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'warning.lighter' }}>
-                    <Groups sx={{ fontSize: 30, color: 'warning.main', mb: 1 }} />
-                    <Typography variant="h5" fontWeight="bold">
-                      {stats.totalTeams}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Team Attivi
-                    </Typography>
-                  </Paper>
-                </Grid>
-                
-                <Grid size={{ xs: 12, sm: 4}}>
-                  <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'info.lighter' }}>
-                    <SportsMotorsports sx={{ fontSize: 30, color: 'info.main', mb: 1 }} />
-                    <Typography variant="h5" fontWeight="bold">
-                      {stats.totalLeagues}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Leghe Attive
-                    </Typography>
-                  </Paper>
-                </Grid>
-                
-                <Grid size={{ xs: 12, sm: 4}}>
-                  <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'error.lighter' }}>
-                    <Timeline sx={{ fontSize: 30, color: 'error.main', mb: 1 }} />
-                    <Typography variant="h5" fontWeight="bold">
-                      {stats.gamesPlayed}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Gare Giocate
-                    </Typography>
-                  </Paper>
-                </Grid>
-                
-                <Grid size={{ xs: 12, sm: 4}}>
-                  <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'secondary.lighter' }}>
-                    <TrendingUp sx={{ fontSize: 30, color: 'secondary.main', mb: 1 }} />
-                    <Typography variant="h5" fontWeight="bold">
-                      {stats.winRate}%
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Win Rate
-                    </Typography>
-                  </Paper>
-                </Grid>
-              </Grid>
 
-              {/* Progress Stats */}
-              <Box mt={3}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Media Punti per Gara
-                </Typography>
-                <Box display="flex" alignItems="center" gap={2}>
-                  <LinearProgress 
-                    variant="determinate" 
-                    value={Math.min(100, (stats.averagePointsPerRace / 100) * 100)}
-                    sx={{ flexGrow: 1, height: 8, borderRadius: 4 }}
-                  />
-                  <Typography variant="body2" fontWeight="bold">
-                    {stats.averagePointsPerRace.toFixed(1)}
-                  </Typography>
+              {loadingStats ? (
+                <Box display="flex" justifyContent="center" py={5}>
+                  <CircularProgress size={28} />
                 </Box>
-              </Box>
+              ) : statsError ? (
+                <Alert severity="warning">
+                  Statistiche temporaneamente non disponibili.
+                </Alert>
+              ) : (
+                <>
+                  <Grid container spacing={3}>
+                    <Grid size={{ xs: 6, sm: 4}}>
+                      <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'primary.lighter' }}>
+                        <EmojiEvents sx={{ fontSize: 30, color: 'primary.main', mb: 1 }} />
+                        <Typography variant="h5" fontWeight="bold">
+                          {stats.totalPoints}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Punti Totali
+                        </Typography>
+                      </Paper>
+                    </Grid>
 
-              <Box mt={2}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Categoria Preferita
-                </Typography>
-                <Chip 
-                  label={stats.favoriteCategory}
-                  color="primary"
-                  sx={{ mt: 1 }}
-                />
-              </Box>
+                    <Grid size={{ xs: 12, sm: 4}}>
+                      <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'success.lighter' }}>
+                        <EmojiEvents sx={{ fontSize: 30, color: 'success.main', mb: 1 }} />
+                        <Typography variant="h5" fontWeight="bold">
+                          #{stats.bestPosition || '-'}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Miglior Posizione
+                        </Typography>
+                      </Paper>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 4}}>
+                      <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'warning.lighter' }}>
+                        <Groups sx={{ fontSize: 30, color: 'warning.main', mb: 1 }} />
+                        <Typography variant="h5" fontWeight="bold">
+                          {stats.totalTeams}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Team Attivi
+                        </Typography>
+                      </Paper>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 4}}>
+                      <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'info.lighter' }}>
+                        <SportsMotorsports sx={{ fontSize: 30, color: 'info.main', mb: 1 }} />
+                        <Typography variant="h5" fontWeight="bold">
+                          {stats.totalLeagues}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Leghe Attive
+                        </Typography>
+                      </Paper>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 4}}>
+                      <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'error.lighter' }}>
+                        <Timeline sx={{ fontSize: 30, color: 'error.main', mb: 1 }} />
+                        <Typography variant="h5" fontWeight="bold">
+                          {stats.gamesPlayed}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Gare Giocate
+                        </Typography>
+                      </Paper>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 4}}>
+                      <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'secondary.lighter' }}>
+                        <TrendingUp sx={{ fontSize: 30, color: 'secondary.main', mb: 1 }} />
+                        <Typography variant="h5" fontWeight="bold">
+                          {stats.winRate}%
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Win Rate
+                        </Typography>
+                      </Paper>
+                    </Grid>
+                  </Grid>
+
+                  <Box mt={3}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Media Punti per Gara
+                    </Typography>
+                    <Box display="flex" alignItems="center" gap={2}>
+                      <LinearProgress
+                        variant="determinate"
+                        value={Math.min(100, (stats.averagePointsPerRace / 100) * 100)}
+                        sx={{ flexGrow: 1, height: 8, borderRadius: 4 }}
+                      />
+                      <Typography variant="body2" fontWeight="bold">
+                        {stats.averagePointsPerRace.toFixed(1)}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Box mt={2}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Categoria Preferita
+                    </Typography>
+                    <Chip
+                      label={stats.favoriteCategory}
+                      color="primary"
+                      sx={{ mt: 1 }}
+                    />
+                  </Box>
+                </>
+              )}
             </CardContent>
           </Card>
 

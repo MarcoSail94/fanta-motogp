@@ -104,11 +104,15 @@ let theme = createTheme(baseTheme, {
           backdropFilter: 'blur(16px) saturate(180%)', // Effetto vetro avanzato
           border: '1px solid rgba(255, 255, 255, 0.08)',
           boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.5)',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          '&:hover': {
-            borderColor: '#E60023', // Bordo rosso vivo
-            boxShadow: '0 0 20px rgba(230, 0, 35, 0.4), 0 8px 32px 0 rgba(0, 0, 0, 0.6)', // Glow esterno
-            transform: 'translateY(-6px)',
+          transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+          '&.interactive-card, &[data-interactive="true"]': {
+            cursor: 'pointer',
+            transition: 'border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease',
+            '&:hover': {
+              borderColor: '#E60023',
+              boxShadow: '0 0 20px rgba(230, 0, 35, 0.4), 0 8px 32px 0 rgba(0, 0, 0, 0.6)',
+              transform: 'translateY(-4px)',
+            },
           },
         },
       },

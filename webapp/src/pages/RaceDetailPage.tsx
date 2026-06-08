@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getRaceById, getRaceResults, getQualifyingResults } from '../services/api';
+import { queryKeys } from '../services/queryKeys';
 import {
   Box, Typography, CircularProgress, Alert, Card, useMediaQuery,
   Paper, Tabs, Tab, Table, TableBody, TableCell, TableContainer,
@@ -202,28 +203,28 @@ export default function RaceDetailPage() {
   const [selectedSession, setSelectedSession] = useState<'race' | 'sprint' | 'qualifying' | 'fp1' | 'fp2' | 'pr'>('race');
 
   const { data: raceData, isLoading: loadingRace } = useQuery({
-    queryKey: ['raceDetails', raceId],
+    queryKey: queryKeys.races.detail(raceId),
     queryFn: () => getRaceById(raceId!),
     enabled: !!raceId,
   });
 
   // Query per risultati gara e sprint
   const { data: raceResultsData, isLoading: loadingRaceResults } = useQuery({
-    queryKey: ['raceResults', raceId],
+    queryKey: queryKeys.races.results(raceId),
     queryFn: () => getRaceResults(raceId!),
     enabled: !!raceId && !!raceData,
   });
 
   // Query per risultati qualifiche
   const { data: qualifyingData, isLoading: loadingQualifying } = useQuery({
-    queryKey: ['qualifyingResults', raceId],
+    queryKey: queryKeys.races.qualifying(raceId),
     queryFn: () => getQualifyingResults(raceId!),
     enabled: !!raceId && !!raceData && selectedSession === 'qualifying',
   });
 
   // Query per risultati prove libere
   const { data: practiceData, isLoading: loadingPractice } = useQuery({
-    queryKey: ['practiceResults', raceId, selectedSession],
+    queryKey: queryKeys.races.practice(raceId, selectedSession),
     queryFn: () => getRaceResults(raceId!, selectedSession as 'fp1' | 'fp2' | 'pr'),
     enabled: !!raceId && !!raceData && (selectedSession === 'fp1' || selectedSession === 'fp2' || selectedSession === 'pr'),
   });

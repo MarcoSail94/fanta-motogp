@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getMyTeams, getUpcomingRaces } from '../services/api';
+import { queryKeys } from '../services/queryKeys';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, CircularProgress, Alert, Card, CardContent, 
   CardActions, Grid, Button, Chip, Stack, Avatar, List, ListItem, ListItemAvatar, 
@@ -58,12 +59,12 @@ export default function TeamsPage() {
   const [isLocked, setIsLocked] = useState(false);
 
   const { data: teamsData, isLoading: loadingTeams } = useQuery({
-    queryKey: ['myTeams'],
+    queryKey: queryKeys.teams.mine,
     queryFn: getMyTeams,
   });
 
   const { data: racesData } = useQuery({
-    queryKey: ['upcomingRaces'],
+    queryKey: queryKeys.races.upcoming,
     queryFn: getUpcomingRaces,
   });
 

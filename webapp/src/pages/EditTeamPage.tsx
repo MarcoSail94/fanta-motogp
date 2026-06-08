@@ -3,6 +3,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getTeamById, getRiders, updateTeam } from '../services/api';
+import { queryKeys } from '../services/queryKeys';
+import type { Rider } from '../types';
 import {
   Box, Typography, CircularProgress, Alert, Card, CardContent,
   Button, Stack, Chip, LinearProgress, Avatar, List, ListItem, Grid,
@@ -14,16 +16,6 @@ import {
 } from '@mui/icons-material';
 import { useNotification } from '../contexts/NotificationContext';
 
-
-interface Rider {
-  id: string;
-  name: string;
-  category: 'MOTOGP' | 'MOTO2' | 'MOTO3';
-  value: number;
-  team: string;
-  number: number;
-  riderType: string;
-}
 
 const categoryColors = {
   MOTOGP: '#E60023',
@@ -49,7 +41,7 @@ export default function EditTeamPage() {
   const [expandedCategory, setExpandedCategory] = useState<string | false>('MOTOGP');
 
   const { data: teamData, isLoading: loadingTeam } = useQuery({
-    queryKey: ['teamDetails', teamId], // Uso una chiave più specifica per evitare conflitti
+    queryKey: queryKeys.teams.detail(teamId),
     queryFn: () => getTeamById(teamId!)
   });
 
@@ -61,7 +53,7 @@ export default function EditTeamPage() {
   }, [teamData]); 
 
   const { data: ridersData, isLoading: loadingRiders } = useQuery({
-    queryKey: ['riders'],
+    queryKey: queryKeys.riders.list,
     queryFn: () => getRiders({ limit: 200 }),
   });
 
@@ -144,8 +136,8 @@ export default function EditTeamPage() {
   const updateTeamMutation = useMutation({
     mutationFn: (riderIds: string[]) => updateTeam(teamId!, { riderIds }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myTeams'] });
-      queryClient.invalidateQueries({ queryKey: ['team', teamId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.teams.mine });
+      queryClient.invalidateQueries({ queryKey: queryKeys.teams.detail(teamId) });
       notify('Team aggiornato con successo!', 'success');
       navigate(-1);
     },

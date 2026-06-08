@@ -3,6 +3,8 @@ import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getLeagueDetails, getRiders, createTeam } from '../services/api';
+import { queryKeys } from '../services/queryKeys';
+import type { Rider } from '../types';
 import {
   Box,
   Typography,
@@ -37,16 +39,6 @@ import {
 import { useNotification } from '../contexts/NotificationContext';
 
 
-interface Rider {
-  id: string;
-  name: string;
-  category: 'MOTOGP' | 'MOTO2' | 'MOTO3';
-  value: number;
-  riderType: string;
-  team: string;
-  number: number;
-}
-
 const categoryColors = {
   MOTOGP: '#E60023',
   MOTO2: '#FF6B00',
@@ -71,23 +63,23 @@ export default function CreateTeamPage() {
   const [expandedCategory, setExpandedCategory] = useState<string | false>('MOTOGP');
 
   const { data: leagueData, isLoading: isLoadingLeague } = useQuery({
-    queryKey: ['leagueDetails', leagueId],
+    queryKey: queryKeys.leagues.detail(leagueId),
     queryFn: () => getLeagueDetails(leagueId!),
   });
 
   const { data: ridersData, isLoading: isLoadingRiders } = useQuery<{ riders: Rider[] }>({
-    queryKey: ['allRiders'],
+    queryKey: queryKeys.riders.all,
     queryFn: () => getRiders({ limit: 200 }),
   });
 
   const { mutate: createTeamMutation, isPending: isCreatingTeam } = useMutation({
     mutationFn: createTeam,
     onSuccess: (data: any) => {
-      queryClient.setQueryData(['myTeams'], (oldData: any) => ({
+      queryClient.setQueryData(queryKeys.teams.mine, (oldData: any) => ({
         ...oldData,
         teams: [...(oldData?.teams || []), data.team],
       }));
-      queryClient.invalidateQueries({ queryKey: ['leagueDetails', leagueId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.leagues.detail(leagueId) });
       notify('Team creato con successo!', 'success');
       navigate(-1);
     },

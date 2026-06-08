@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getTeamById, getLineup, setLineup, getRaceById, getRaceResults, getQualifyingResults } from '../services/api';
+import { queryKeys } from '../services/queryKeys';
 import { useNotification } from '../contexts/NotificationContext';
 import {
   Box, Typography, Grid, Paper, Button, Avatar, TextField, 
@@ -23,19 +24,19 @@ export default function LineupPage() {
   // State locale per il lineup: { riderId: { selected: boolean, pos: string } }
   const [selection, setSelection] = useState<Record<string, { selected: boolean; pos: string }>>({});
 
-  const { data: teamData, isLoading: l1 } = useQuery({ queryKey: ['team', teamId], queryFn: () => getTeamById(teamId!) });
-  const { data: raceData, isLoading: l2 } = useQuery({ queryKey: ['race', raceId], queryFn: () => getRaceById(raceId!) });
-  const { data: lineupData, isLoading: l3 } = useQuery({ queryKey: ['lineup', teamId, raceId], queryFn: () => getLineup(teamId!, raceId!) });
+  const { data: teamData, isLoading: l1 } = useQuery({ queryKey: queryKeys.teams.detail(teamId), queryFn: () => getTeamById(teamId!) });
+  const { data: raceData, isLoading: l2 } = useQuery({ queryKey: queryKeys.races.detail(raceId), queryFn: () => getRaceById(raceId!) });
+  const { data: lineupData, isLoading: l3 } = useQuery({ queryKey: queryKeys.lineups.detail(teamId, raceId), queryFn: () => getLineup(teamId!, raceId!) });
 
   // Fetch dei risultati delle sessioni precedenti
   const { data: raceResultsData } = useQuery({ 
-    queryKey: ['raceResults', raceId], 
+    queryKey: queryKeys.races.results(raceId),
     queryFn: () => getRaceResults(raceId!), 
     enabled: !!raceId 
   });
   
   const { data: qualiResultsData } = useQuery({ 
-    queryKey: ['qualiResults', raceId], 
+    queryKey: queryKeys.races.qualifying(raceId),
     queryFn: () => getQualifyingResults(raceId!), 
     enabled: !!raceId 
   });
@@ -55,8 +56,8 @@ export default function LineupPage() {
     mutationFn: (data: any) => setLineup(raceId!, data),
     onSuccess: () => {
       notify('Formazione salvata con successo!', 'success');
-      queryClient.invalidateQueries({ queryKey: ['myTeams'] });
-      queryClient.invalidateQueries({ queryKey: ['lineup'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.teams.mine });
+      queryClient.invalidateQueries({ queryKey: queryKeys.lineups.root });
       navigate(-1);
     },
     onError: (err: any) => notify(err.response?.data?.error || 'Errore nel salvataggio.', 'error')

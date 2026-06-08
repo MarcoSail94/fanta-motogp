@@ -4,20 +4,10 @@ import { CalendarToday, LocationOn, SportsScore, Speed } from '@mui/icons-materi
 import { useNavigate } from 'react-router-dom';
 import { format, differenceInDays, isBefore, isAfter } from 'date-fns';
 import { it } from 'date-fns/locale';
+import type { Race } from '../types';
 
 interface RaceEventCardProps {
-  race: {
-    id: string;
-    name: string;
-    circuit: string;
-    country: string;
-    gpDate: string;
-    sprintDate?: string;
-    startDate: string;
-    endDate: string;
-    round: number;
-    trackLayoutUrl?: string;
-  };
+  race: Race;
 }
 
 export function RaceEventCard({ race }: RaceEventCardProps) {
