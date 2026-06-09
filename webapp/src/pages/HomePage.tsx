@@ -31,6 +31,7 @@ import { ActionBanner } from '../components/ui/ActionBanner';
 import { EmptyState } from '../components/ui/EmptyState';
 import { MetricTile } from '../components/ui/MetricTile';
 import { PageHeader } from '../components/ui/PageHeader';
+import { getLineupDeadlineDate } from '../utils/raceDates';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -57,7 +58,7 @@ export default function HomePage() {
   const teams = teamsData?.teams || [];
   const isLoading = loadingRaces || loadingLeagues || loadingTeams;
 
-  const targetDate = nextRace ? new Date(nextRace.sprintDate || nextRace.gpDate) : null;
+  const targetDate = nextRace ? getLineupDeadlineDate(nextRace) : null;
   const isLocked = targetDate ? new Date() >= targetDate : false;
   const teamNeedingLineup = useMemo(
     () => teams.find((team: any) => !team.hasLineup),

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getAllRaces } from '../services/api';
 import { queryKeys } from '../services/queryKeys';
 import type { Race } from '../types';
-import { Alert, Box, CircularProgress, Grid, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Grid, Paper, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { CalendarToday, Flag, SportsScore } from '@mui/icons-material';
 import { isAfter, isBefore } from 'date-fns';
 import { RaceEventCard } from '../components/RaceEventCard';
@@ -24,6 +24,8 @@ function raceBucket(race: Race, now: Date) {
 
 export default function RaceCalendarPage() {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const currentYear = new Date().getFullYear();
   const { data: racesData, isLoading, error } = useQuery<{ races: Race[] }>({
     queryKey: queryKeys.races.all(currentYear),
@@ -37,11 +39,18 @@ export default function RaceCalendarPage() {
 
   const now = new Date();
   const nextRace = races.find((race) => raceBucket(race, now) !== 'Concluse');
+  const inProgressRaces = races.filter((race) => raceBucket(race, now) === 'In corso');
+  const futureRaces = races.filter((race) => raceBucket(race, now) === 'Future');
+  const completedRaces = [...races]
+    .filter((race) => raceBucket(race, now) === 'Concluse')
+    .sort((a, b) => b.round - a.round);
+  const latestCompletedRace = completedRaces[0];
   const groupedRaces = {
-    'In corso': races.filter((race) => raceBucket(race, now) === 'In corso'),
-    Future: races.filter((race) => raceBucket(race, now) === 'Future'),
-    Concluse: races.filter((race) => raceBucket(race, now) === 'Concluse'),
+    'In corso': inProgressRaces,
+    Concluse: completedRaces,
+    Future: futureRaces,
   };
+  const sectionOrder = isMobile ? ['In corso', 'Concluse', 'Future'] : ['In corso', 'Future', 'Concluse'];
 
   if (isLoading) {
     return (
@@ -76,6 +85,40 @@ export default function RaceCalendarPage() {
         </Box>
       )}
 
+      {(nextRace || latestCompletedRace) && (
+        <Paper sx={{ display: { xs: 'block', sm: 'none' }, p: 1.5, mb: 3 }}>
+          <Stack spacing={1}>
+            <Typography variant="subtitle2" fontWeight={900}>
+              Accessi rapidi
+            </Typography>
+            <Stack direction="row" spacing={1}>
+              {latestCompletedRace && (
+                <Button
+                  fullWidth
+                  size="small"
+                  variant="contained"
+                  startIcon={<Flag />}
+                  onClick={() => navigate(`/races/${latestCompletedRace.id}`)}
+                >
+                  Ultima gara
+                </Button>
+              )}
+              {nextRace && (
+                <Button
+                  fullWidth
+                  size="small"
+                  variant="outlined"
+                  startIcon={<SportsScore />}
+                  onClick={() => navigate(`/races/${nextRace.id}`)}
+                >
+                  Prossima
+                </Button>
+              )}
+            </Stack>
+          </Stack>
+        </Paper>
+      )}
+
       {races.length === 0 ? (
         <EmptyState
           icon={<CalendarToday sx={{ fontSize: 56 }} />}
@@ -84,7 +127,8 @@ export default function RaceCalendarPage() {
         />
       ) : (
         <Stack spacing={4}>
-          {Object.entries(groupedRaces)
+          {sectionOrder
+            .map((section) => [section, groupedRaces[section as keyof typeof groupedRaces]] as const)
             .filter(([, sectionRaces]) => sectionRaces.length > 0)
             .map(([section, sectionRaces]) => (
               <Box key={section}>

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { format, differenceInDays, isBefore, isAfter } from 'date-fns';
 import { it } from 'date-fns/locale';
 import type { Race } from '../types';
+import { getSprintDate } from '../utils/raceDates';
 
 interface RaceEventCardProps {
   race: Race;
@@ -13,6 +14,7 @@ interface RaceEventCardProps {
 export function RaceEventCard({ race }: RaceEventCardProps) {
   const navigate = useNavigate();
   const raceDate = new Date(race.gpDate);
+  const sprintDate = getSprintDate(race);
   const startDate = new Date(race.startDate);
   const endDate = new Date(race.endDate);
   const now = new Date();
@@ -166,11 +168,11 @@ export function RaceEventCard({ race }: RaceEventCardProps) {
               {race.country}
             </Typography>
           </Box>
-          {race.sprintDate && (
+          {sprintDate && (
             <Box display="flex" alignItems="center" gap={1} mb={0.5}>
               <Speed fontSize="small" sx={{ color: 'text.secondary', flexShrink: 0 }} />
               <Typography variant="body2" color="text.secondary">
-                Sprint: {format(new Date(race.sprintDate), 'dd/MM', { locale: it })}
+                Sprint: {format(sprintDate, 'dd/MM', { locale: it })}
               </Typography>
             </Box>
           )}

@@ -48,6 +48,7 @@ import { differenceInCalendarDays, format, isAfter, isBefore } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { EmptyState } from '../components/ui/EmptyState';
 import { MetricTile } from '../components/ui/MetricTile';
+import { getSprintDate } from '../utils/raceDates';
 
 type Category = 'MOTOGP' | 'MOTO2' | 'MOTO3';
 type RaceSession = 'race' | 'sprint' | 'qualifying' | 'fp1' | 'fp2' | 'pr';
@@ -183,23 +184,24 @@ function MobileResultCard({ result, selectedSession }: { result: RaceResult; sel
         backgroundColor: isDNF ? 'rgba(255, 0, 0, 0.05)' : 'background.paper',
       }}
     >
-      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-        <Stack direction="row" spacing={1.25} alignItems="center">
-          <Box sx={{ width: 40, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+      <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Box sx={{ width: 34, display: 'flex', alignItems: 'center', gap: 0.25 }}>
             {isPodium && <EmojiEvents sx={{ fontSize: 18, color: podiumColor(result.position) }} />}
-            <Typography fontWeight={900} color={isDNF ? 'error.main' : 'text.primary'}>
+            <Typography variant="body2" fontWeight={900} color={isDNF ? 'error.main' : 'text.primary'}>
               {resultPositionLabel(result)}
             </Typography>
           </Box>
-          <Avatar sx={{ width: 30, height: 30, fontSize: '0.75rem', bgcolor: 'primary.main' }}>
+          <Avatar sx={{ width: 26, height: 26, fontSize: '0.7rem', bgcolor: 'primary.main' }}>
             {result.rider.number}
           </Avatar>
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
             <Typography variant="body2" fontWeight={800} noWrap>
               {result.rider.name}
             </Typography>
-            <Typography variant="caption" color="text.secondary" noWrap>
-              {result.rider.team}
+            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', lineHeight: 1.2 }}>
+              {result.rider.team} · {result.time || result.gap || result.bestLap?.time || '-'}
+              {showPoints ? ` · ${result.totalLaps || '-'} giri` : ''}
             </Typography>
           </Box>
           {showPoints && (
@@ -207,15 +209,15 @@ function MobileResultCard({ result, selectedSession }: { result: RaceResult; sel
               label={`${result.points || 0} pt`}
               size="small"
               color={result.points ? 'primary' : 'default'}
-              sx={{ fontWeight: 800 }}
+              sx={{ height: 22, fontWeight: 800, '& .MuiChip-label': { px: 0.75 } }}
             />
           )}
         </Stack>
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
-          <Chip size="small" variant="outlined" label={result.time || result.gap || result.bestLap?.time || '-'} />
-          {showPoints && <Chip size="small" variant="outlined" label={`${result.totalLaps || '-'} giri`} />}
-          {isDNF && <Chip size="small" color="error" label={result.status} />}
-        </Stack>
+        {isDNF && (
+          <Typography variant="caption" color="error.main" sx={{ pl: 5.5, display: 'block', lineHeight: 1.2 }}>
+            {result.status}
+          </Typography>
+        )}
       </CardContent>
     </Card>
   );
@@ -288,7 +290,8 @@ export default function RaceDetailPage() {
   }
 
   const race = raceData.race;
-  const hasSprint = !!race.sprintDate;
+  const sprintDate = getSprintDate(race);
+  const hasSprint = !!sprintDate;
   const weekendStatus = getWeekendStatus(race);
 
   return (
@@ -350,10 +353,10 @@ export default function RaceDetailPage() {
                 label={format(new Date(race.gpDate), 'dd MMMM yyyy', { locale: it })}
                 sx={{ bgcolor: 'rgba(255,255,255,0.14)', color: 'white' }}
               />
-              {race.sprintDate && (
+              {sprintDate && (
                 <Chip
                   icon={<Speed />}
-                  label={`Sprint ${format(new Date(race.sprintDate), 'dd MMM', { locale: it })}`}
+                  label={`Sprint ${format(sprintDate, 'dd MMM', { locale: it })}`}
                   sx={{ bgcolor: 'rgba(255,255,255,0.14)', color: 'white' }}
                 />
               )}
@@ -370,7 +373,7 @@ export default function RaceDetailPage() {
           <MetricTile label="GP" value={format(new Date(race.gpDate), 'dd MMM', { locale: it })} helper="gara principale" icon={<SportsScore />} tone="secondary" />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <MetricTile label="Sprint" value={race.sprintDate ? format(new Date(race.sprintDate), 'dd MMM', { locale: it }) : '-'} helper={hasSprint ? 'weekend sprint' : 'non prevista'} icon={<Speed />} tone={hasSprint ? 'warning' : 'info'} />
+          <MetricTile label="Sprint" value={sprintDate ? format(sprintDate, 'dd MMM', { locale: it }) : '-'} helper={hasSprint ? 'weekend sprint' : 'non prevista'} icon={<Speed />} tone={hasSprint ? 'warning' : 'info'} />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
           <MetricTile label="Risultati" value={categoryResults.length || '-'} helper={`${selectedSession.toUpperCase()} ${selectedCategory}`} icon={<EmojiEvents />} tone={categoryResults.length ? 'success' : 'primary'} />
@@ -439,7 +442,7 @@ export default function RaceDetailPage() {
             </Grid>
           </Grid>
 
-          {isRaceOrSprint(selectedSession) && <PodiumStrip results={categoryResults} />}
+          {!isMobile && isRaceOrSprint(selectedSession) && <PodiumStrip results={categoryResults} />}
 
           {loadingResults ? (
             <Box display="flex" justifyContent="center" p={4}>

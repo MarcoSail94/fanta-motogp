@@ -23,6 +23,7 @@ import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { EmptyState } from '../components/ui/EmptyState';
 import { PageHeader } from '../components/ui/PageHeader';
+import { getLineupDeadlineDate } from '../utils/raceDates';
 
 interface Team {
   id: string;
@@ -72,7 +73,7 @@ export default function TeamsPage() {
 
   const teams: Team[] = teamsData?.teams || [];
   const nextRace = racesData?.races?.[0];
-  const targetDate = nextRace ? new Date(nextRace.sprintDate || nextRace.gpDate) : null;
+  const targetDate = nextRace ? getLineupDeadlineDate(nextRace) : null;
 
   // Calcolo in tempo reale se la gara è in corso
   useEffect(() => {

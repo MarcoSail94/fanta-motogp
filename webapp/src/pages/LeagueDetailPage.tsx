@@ -36,6 +36,7 @@ import { LeagueTabPanel } from '../components/league/LeagueTabPanel';
 import { MobileStandingCard } from '../components/league/MobileStandingCard';
 import { MetricTile } from '../components/ui/MetricTile';
 import type { LeagueStanding } from '../components/league/MobileStandingCard';
+import { getLineupDeadlineDate } from '../utils/raceDates';
 
 export default function LeagueDetailPage() {
   const { leagueId } = useParams<{ leagueId: string }>();
@@ -97,7 +98,7 @@ export default function LeagueDetailPage() {
   const allRaces = racesData?.races || [];
   const nextRace = allRaces.find((r: any) => !isPast(new Date(r.gpDate)));
   const myTeam = myTeamData?.team;
-  const deadline = nextRace ? new Date(nextRace.sprintDate || nextRace.gpDate) : null;
+  const deadline = nextRace ? getLineupDeadlineDate(nextRace) : null;
 
   // Controllo in tempo reale per lo stato di blocco (gara in corso)
   useEffect(() => {
