@@ -248,6 +248,20 @@ export const dispatchRaceRefreshWorkflow = async (req: AuthRequest, res: Respons
   }
 
   try {
+    const leagueAdminMembership = await prisma.leagueMember.findFirst({
+      where: {
+        userId: req.userId,
+        role: 'ADMIN',
+      },
+      select: { leagueId: true },
+    });
+
+    if (!leagueAdminMembership) {
+      return res.status(403).json({
+        error: 'Accesso negato. Solo gli admin di una lega possono aggiornare i dati gara.',
+      });
+    }
+
     const race = await prisma.race.findUnique({
       where: { id: raceId },
       select: { id: true, name: true, round: true, season: true },
@@ -291,6 +305,7 @@ export const dispatchRaceRefreshWorkflow = async (req: AuthRequest, res: Respons
       raceName: race.name,
       inputs,
       requestedBy: req.userId,
+      requestedByLeagueId: leagueAdminMembership.leagueId,
     });
 
     const syncLog = await prisma.syncLog.create({
@@ -306,6 +321,7 @@ export const dispatchRaceRefreshWorkflow = async (req: AuthRequest, res: Respons
           workflowId: config.workflowId,
           ref: config.ref,
           requestedBy: req.userId,
+          requestedByLeagueId: leagueAdminMembership.leagueId,
         },
       },
     });

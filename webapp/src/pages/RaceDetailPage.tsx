@@ -2,7 +2,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getAllRaces, getQualifyingResults, getRaceById, getRaceResults, triggerRaceDataRefresh } from '../services/api';
+import { getAllRaces, getMyLeagues, getQualifyingResults, getRaceById, getRaceResults, triggerRaceDataRefresh } from '../services/api';
 import { queryKeys } from '../services/queryKeys';
 import {
   Alert,
@@ -467,10 +467,20 @@ export default function RaceDetailPage() {
     enabled: !!raceId,
   });
 
+  const { data: myLeaguesData } = useQuery({
+    queryKey: queryKeys.leagues.mine,
+    queryFn: getMyLeagues,
+    enabled: !!user,
+  });
+
+  const isLeagueAdmin = useMemo(() => (
+    myLeaguesData?.leagues?.some((league: any) => league.isAdmin || league.role === 'ADMIN') || false
+  ), [myLeaguesData]);
+
   const { data: seasonRacesData } = useQuery({
     queryKey: queryKeys.races.all(raceData?.race?.season),
     queryFn: () => getAllRaces(raceData!.race.season),
-    enabled: !!user?.isAdmin && !!raceData?.race?.season,
+    enabled: isLeagueAdmin && !!raceData?.race?.season,
   });
 
   const { data: raceResultsData, isLoading: loadingRaceResults } = useQuery({
@@ -555,7 +565,7 @@ export default function RaceDetailPage() {
   const sprintDate = getSprintDate(race);
   const hasSprint = !!sprintDate;
   const weekendStatus = getWeekendStatus(race);
-  const canRefreshRaceData = Boolean(user?.isAdmin && latestCompletedRaceId === race.id);
+  const canRefreshRaceData = Boolean(isLeagueAdmin && latestCompletedRaceId === race.id);
 
   return (
     <Box className="fade-in" sx={{ pb: 2 }}>

@@ -44,6 +44,7 @@ router.get('/cron/sync-results', authenticateCron, async (req, res) => {
 
 router.delete('/cron/results/latest', authenticateCron, syncController.deleteLatestRaceResults);
 router.delete('/race-results/:raceId',authenticateCron, syncController.deleteRaceResults);
+router.post('/github/races/:raceId/refresh', authenticate, syncController.dispatchRaceRefreshWorkflow);
 
 // --- Rotte per il pannello di amministrazione (protette da login admin) ---
 router.use(authenticate);
@@ -53,7 +54,6 @@ router.use(requireAdmin);
 router.post('/riders', syncController.syncRiders);
 router.post('/calendar', syncController.syncCalendar);
 router.post('/race-results/:raceId', syncController.syncRaceResults);
-router.post('/github/races/:raceId/refresh', syncController.dispatchRaceRefreshWorkflow);
 
 // Route informative per admin
 router.get('/logs', syncController.getSyncLogs);
