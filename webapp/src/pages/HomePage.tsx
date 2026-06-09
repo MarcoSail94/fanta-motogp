@@ -65,6 +65,14 @@ export default function HomePage() {
     [teams]
   );
   const primaryTeam = teamNeedingLineup || teams[0];
+  const bestLeaguePosition = useMemo(() => {
+    const positions = leagues
+      .map((league: any) => league.userPosition ?? league.position)
+      .filter((position: unknown): position is number => typeof position === 'number' && position > 0)
+      .sort((a: number, b: number) => a - b);
+
+    return positions[0] ?? null;
+  }, [leagues]);
 
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0 });
 
@@ -305,13 +313,8 @@ export default function HomePage() {
           <Grid size={{ xs: 6, md: 3 }}>
             <MetricTile
               label="Miglior piazza"
-              value={
-                leagues
-                  .map((league: any) => league.userPosition)
-                  .filter(Boolean)
-                  .sort((a: number, b: number) => a - b)[0] || '-'
-              }
-              helper="posizione lega"
+              value={bestLeaguePosition ? `#${bestLeaguePosition}` : '-'}
+              helper={bestLeaguePosition ? 'posizione lega' : 'nessuna classifica'}
               icon={<EmojiEvents />}
               tone="warning"
             />
@@ -354,11 +357,11 @@ export default function HomePage() {
                           {league.currentTeams}/{league.maxTeams} partecipanti
                         </Typography>
                       </Box>
-                      {league.userPosition && (
+                      {(league.userPosition ?? league.position) && (
                         <Chip
                           icon={<EmojiEvents sx={{ fontSize: 16 }} />}
-                          label={`${league.userPosition}`}
-                          color={league.userPosition <= 3 ? 'warning' : 'default'}
+                          label={`${league.userPosition ?? league.position}`}
+                          color={(league.userPosition ?? league.position) <= 3 ? 'warning' : 'default'}
                           size="small"
                         />
                       )}

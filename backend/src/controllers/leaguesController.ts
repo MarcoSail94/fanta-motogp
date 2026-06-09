@@ -28,7 +28,6 @@ export const getMyLeagues = async (req: AuthRequest, res: Response) => {
           select: { teams: true }
         },
         teams: {
-          where: { userId },
           include: {
             scores: true
           }
@@ -37,8 +36,15 @@ export const getMyLeagues = async (req: AuthRequest, res: Response) => {
     });
 
     const formattedLeagues = leagues.map(league => {
-      const userTeam = league.teams[0];
-      const userPoints = userTeam ? userTeam.scores.reduce((sum: number, s: TeamScore) => sum + s.totalPoints, 0) : 0;
+      const standings = league.teams
+        .map(team => ({
+          teamId: team.id,
+          userId: team.userId,
+          totalPoints: (team.startingPoints || 0) + team.scores.reduce((sum: number, s: TeamScore) => sum + s.totalPoints, 0),
+        }))
+        .sort((a, b) => a.totalPoints - b.totalPoints);
+      const userTeam = standings.find(team => team.userId === userId);
+      const userPosition = userTeam ? standings.findIndex(team => team.teamId === userTeam.teamId) + 1 : null;
 
       return {
         id: league.id,
@@ -48,8 +54,8 @@ export const getMyLeagues = async (req: AuthRequest, res: Response) => {
         maxTeams: league.maxTeams,
         budget: league.budget,
         currentTeams: league._count.teams,
-        userPoints: userPoints,
-        userPosition: null
+        userPoints: userTeam?.totalPoints || 0,
+        userPosition
       };
     });
 
