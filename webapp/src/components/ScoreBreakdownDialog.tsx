@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Button, Box, Typography, Chip, Paper, Collapse, Stack, Avatar
+  Button, Box, Typography, Chip, Paper, Collapse, Stack, Avatar,
+  useMediaQuery, useTheme
 } from '@mui/material';
 import { EmojiEvents, ExpandMore, ExpandLess, Info } from '@mui/icons-material';
 
@@ -20,6 +21,8 @@ function formatPosition(value: unknown) {
 
 export function ScoreBreakdownDialog({ open, onClose, lineupData }: ScoreBreakdownProps) {
   const [showHelp, setShowHelp] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
   if (!lineupData) return null;
 
@@ -48,8 +51,23 @@ export function ScoreBreakdownDialog({ open, onClose, lineupData }: ScoreBreakdo
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ pb: 1 }}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      fullScreen={isMobile}
+      scroll="paper"
+      PaperProps={{
+        sx: {
+          maxHeight: { xs: '100dvh', sm: 'calc(100% - 64px)' },
+          height: { xs: '100dvh', sm: 'auto' },
+          m: { xs: 0, sm: 4 },
+          display: 'flex',
+        },
+      }}
+    >
+      <DialogTitle sx={{ pb: 1, flexShrink: 0 }}>
         <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 900, letterSpacing: 1.6 }}>
@@ -81,16 +99,27 @@ export function ScoreBreakdownDialog({ open, onClose, lineupData }: ScoreBreakdo
         </Stack>
       </DialogTitle>
       
-      <DialogContent sx={{ px: { xs: 1, sm: 3 } }}>
+      <DialogContent
+        dividers
+        sx={{
+          px: { xs: 1, sm: 3 },
+          py: { xs: 1.5, sm: 2 },
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
         <TableContainer
           component={Paper}
           className="liquid-glass"
           sx={{
             border: '1px solid rgba(255,255,255,0.12)',
-            overflow: 'hidden',
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            maxWidth: '100%',
+            WebkitOverflowScrolling: 'touch',
           }}
         >
-          <Table size="small">
+          <Table size="small" sx={{ minWidth: showSprintColumn ? 780 : 680 }}>
             <TableHead sx={{ bgcolor: 'rgba(255,255,255,0.055)' }}>
               <TableRow>
                 <TableCell sx={{ px: 1 }}>Pilota</TableCell>
@@ -271,7 +300,7 @@ export function ScoreBreakdownDialog({ open, onClose, lineupData }: ScoreBreakdo
         </Box>
       </DialogContent>
       
-      <DialogActions>
+      <DialogActions sx={{ flexShrink: 0, px: { xs: 2, sm: 3 }, pb: { xs: 'max(16px, env(safe-area-inset-bottom))', sm: 2 } }}>
         <Button onClick={onClose} size="small">Chiudi</Button>
       </DialogActions>
     </Dialog>
