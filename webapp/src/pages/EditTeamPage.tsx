@@ -10,11 +10,14 @@ import {
   Button, Stack, Chip, LinearProgress, Avatar, List, ListItem, Grid,
   ListItemAvatar, ListItemText, ListItemSecondaryAction, ListItemButton,
   Accordion, AccordionSummary, AccordionDetails, Divider, Paper, Checkbox,
+  TextField, InputAdornment,
 } from '@mui/material';
 import {
-  ExpandMore, Save, Euro, Warning, CheckCircle, Cancel
+  ExpandMore, Save, Euro, Warning, CheckCircle, Search, ArrowBack
 } from '@mui/icons-material';
 import { useNotification } from '../contexts/NotificationContext';
+import { MobileActionBar } from '../components/ui/MobileActionBar';
+import { PageHeader } from '../components/ui/PageHeader';
 
 
 const categoryColors = {
@@ -39,6 +42,7 @@ export default function EditTeamPage() {
   const [teamName, setTeamName] = useState('');
   const [selectedRiders, setSelectedRiders] = useState<string[]>([]);
   const [expandedCategory, setExpandedCategory] = useState<string | false>('MOTOGP');
+  const [riderSearchQuery, setRiderSearchQuery] = useState('');
 
   const { data: teamData, isLoading: loadingTeam } = useQuery({
     queryKey: queryKeys.teams.detail(teamId),
@@ -76,6 +80,7 @@ export default function EditTeamPage() {
 
   // Group riders by category
   const ridersByCategory = useMemo(() => {
+    const normalizedSearch = riderSearchQuery.trim().toLowerCase();
     const grouped: Record<string, Rider[]> = {
       MOTOGP: [],
       MOTO2: [],
@@ -83,7 +88,12 @@ export default function EditTeamPage() {
     };
 
     allRiders.forEach((rider: Rider) => {
-        if (rider.riderType === 'OFFICIAL') {
+        const matchesSearch =
+          !normalizedSearch ||
+          rider.name.toLowerCase().includes(normalizedSearch) ||
+          rider.team.toLowerCase().includes(normalizedSearch);
+
+        if (rider.riderType === 'OFFICIAL' && matchesSearch) {
             if (grouped[rider.category]) {
                 grouped[rider.category].push(rider);
             }
@@ -95,7 +105,7 @@ export default function EditTeamPage() {
     });
 
     return grouped;
-  }, [allRiders]);
+  }, [allRiders, riderSearchQuery]);
 
   // Calculate selected riders data
   const selectedRidersData = useMemo(() => {
@@ -103,6 +113,13 @@ export default function EditTeamPage() {
       .map(id => allRiders.find((r: Rider) => r.id === id))
       .filter(Boolean) as Rider[];
   }, [selectedRiders, allRiders]);
+
+  const selectedByCategory = useMemo(() => {
+    return Object.keys(categoryRequirements).reduce((acc, category) => {
+      acc[category] = selectedRidersData.filter((rider) => rider.category === category);
+      return acc;
+    }, {} as Record<string, Rider[]>);
+  }, [selectedRidersData]);
 
   // Calculate budget
   const totalCost = selectedRidersData.reduce((sum, rider) => sum + rider.value, 0);
@@ -126,15 +143,16 @@ export default function EditTeamPage() {
 
   const isTeamValid = useMemo(() => {
     return (
+      teamName.trim().length >= 3 &&
       selectedRiders.length === 9 && // VALIDAZIONE AGGIORNATA
       totalCost <= (league?.budget || 0) &&
       Object.values(categoryStatus).every(s => s.isValid)
     );
-  }, [selectedRiders, totalCost, league?.budget, categoryStatus]);
+  }, [teamName, selectedRiders, totalCost, league?.budget, categoryStatus]);
 
   // Mutation for updating team
   const updateTeamMutation = useMutation({
-    mutationFn: (riderIds: string[]) => updateTeam(teamId!, { riderIds }),
+    mutationFn: (riderIds: string[]) => updateTeam(teamId!, { name: teamName.trim(), riderIds }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.teams.mine });
       queryClient.invalidateQueries({ queryKey: queryKeys.teams.detail(teamId) });
@@ -193,30 +211,146 @@ export default function EditTeamPage() {
   }
 
   return (
-    <Box className="fade-in">
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box>
-          <Typography variant="h4" gutterBottom>
-            Modifica {team.name}
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Lega: {league.name}
-          </Typography>
-        </Box>
-        <Button
-          variant="outlined"
-          color="error"
-          onClick={() => navigate('/teams')}
-          startIcon={<Cancel />}
-        >
-          Annulla
-        </Button>
-      </Stack>
+    <Box className="fade-in" sx={{ pb: { xs: 12, md: 0 } }}>
+      <PageHeader
+        eyebrow="Garage"
+        title={`Modifica ${team.name}`}
+        subtitle={`Lega: ${league.name}. Aggiorna nome e mercato restando nei vincoli della rosa.`}
+        actions={
+          <Button
+            variant="outlined"
+            onClick={() => navigate('/teams')}
+            startIcon={<ArrowBack />}
+          >
+            Team
+          </Button>
+        }
+      />
 
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 8}}>
-          {Object.entries(ridersByCategory).map(([category, riders]) => {
-            const req = categoryRequirements[category as keyof typeof categoryRequirements];
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Nome del team"
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    error={teamName.length > 0 && teamName.trim().length < 3}
+                    helperText={teamName.length > 0 && teamName.trim().length < 3 ? 'Minimo 3 caratteri' : ' '}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Cerca pilota o team"
+                    value={riderSearchQuery}
+                    onChange={(e) => setRiderSearchQuery(e.target.value)}
+                    helperText="Filtra il mercato mantenendo la selezione"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Search />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+                <Box>
+                  <Typography variant="h6" fontWeight={900}>
+                    Rosa attuale
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    3 piloti per categoria, 9 totali.
+                  </Typography>
+                </Box>
+                <Chip
+                  label={`${selectedRiders.length}/9`}
+                  color={selectedRiders.length === 9 ? 'success' : 'default'}
+                  sx={{ fontWeight: 900 }}
+                />
+              </Stack>
+
+              <Grid container spacing={2}>
+                {Object.entries(categoryRequirements).map(([category, req]) => (
+                  <Grid key={category} size={{ xs: 12, sm: 4 }}>
+                    <Box
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 2,
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        bgcolor: 'background.default',
+                      }}
+                    >
+                      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                        <Typography fontWeight={900} color={categoryColors[category as keyof typeof categoryColors]}>
+                          {req.label}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {selectedByCategory[category]?.length || 0}/{req.max}
+                        </Typography>
+                      </Stack>
+                      <Stack spacing={0.75}>
+                        {Array.from({ length: req.max }).map((_, index) => {
+                          const rider = selectedByCategory[category]?.[index];
+
+                          return (
+                            <Box
+                              key={`${category}-${index}`}
+                              sx={{
+                                minHeight: 38,
+                                borderRadius: 1.5,
+                                border: '1px dashed',
+                                borderColor: rider ? categoryColors[category as keyof typeof categoryColors] : 'rgba(255,255,255,0.14)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                px: 1,
+                                gap: 1,
+                              }}
+                            >
+                              {rider ? (
+                                <>
+                                  <Avatar
+                                    sx={{
+                                      width: 24,
+                                      height: 24,
+                                      fontSize: '0.72rem',
+                                      bgcolor: categoryColors[category as keyof typeof categoryColors],
+                                    }}
+                                  >
+                                    {rider.number}
+                                  </Avatar>
+                                  <Typography variant="caption" fontWeight={800} noWrap>
+                                    {rider.name}
+                                  </Typography>
+                                </>
+                              ) : (
+                                <Typography variant="caption" color="text.secondary">
+                                  Slot libero
+                                </Typography>
+                              )}
+                            </Box>
+                          );
+                        })}
+                      </Stack>
+                    </Box>
+                  </Grid>
+                ))}
+              </Grid>
+            </CardContent>
+          </Card>
+
+          {Object.entries(categoryRequirements).map(([category, req]) => {
+            const riders = ridersByCategory[category] || [];
             const status = categoryStatus[category];
 
             return (
@@ -247,6 +381,11 @@ export default function EditTeamPage() {
                   </Stack>
                 </AccordionSummary>
                 <AccordionDetails>
+                  {riders.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                      Nessun pilota trovato per questa categoria.
+                    </Typography>
+                  ) : (
                   <List>
                     {riders.map((rider: Rider) => {
                       const isSelected = selectedRiders.includes(rider.id);
@@ -286,6 +425,7 @@ export default function EditTeamPage() {
                       );
                     })}
                   </List>
+                  )}
                 </AccordionDetails>
               </Accordion>
             );
@@ -294,7 +434,7 @@ export default function EditTeamPage() {
 
         {/* Riepilogo */}
         <Grid size={{ xs: 12, md: 4}}>
-          <Card sx={{ position: 'sticky', top: 80 }}>
+          <Card sx={{ position: { md: 'sticky' }, top: 80 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 Riepilogo Modifiche
@@ -334,12 +474,13 @@ export default function EditTeamPage() {
                 {Object.entries(categoryRequirements).map(([category, req]) => {
                   const status = categoryStatus[category];
                   return (
-                    <Paper 
+                    <Paper
                       key={category} 
                       sx={{ 
-                        p: 1.5, 
-                        backgroundColor: status.isValid ? 'success.dark' : 'background.default',
-                        opacity: status.isValid ? 0.2 : 1,
+                        p: 1.5,
+                        backgroundColor: status.isValid ? 'rgba(0,230,118,0.10)' : 'background.default',
+                        border: '1px solid',
+                        borderColor: status.isValid ? 'success.main' : 'rgba(255,255,255,0.08)',
                       }}
                     >
                       <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -411,7 +552,7 @@ export default function EditTeamPage() {
                 startIcon={<Save />}
                 onClick={handleSaveTeam}
                 disabled={!isTeamValid || updateTeamMutation.isPending}
-                sx={{ mt: 3 }}
+                sx={{ mt: 3, display: { xs: 'none', md: 'inline-flex' } }}
               >
                 {updateTeamMutation.isPending ? 'Salvataggio...' : 'Salva Modifiche'}
               </Button>
@@ -419,6 +560,17 @@ export default function EditTeamPage() {
           </Card>
         </Grid>
       </Grid>
+
+      <MobileActionBar
+        label="Team"
+        value={`${selectedRiders.length}/9 piloti`}
+        helper={`${Math.max(0, remainingBudget)} crediti rimasti`}
+        actionLabel="Salva"
+        loadingLabel="Salvataggio..."
+        onAction={handleSaveTeam}
+        disabled={!isTeamValid || updateTeamMutation.isPending}
+        loading={updateTeamMutation.isPending}
+      />
     </Box>
   );
 }

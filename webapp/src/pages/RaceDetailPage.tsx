@@ -1,18 +1,56 @@
 // webapp/src/pages/RaceDetailPage.tsx
-import React, { useState, useMemo } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getRaceById, getRaceResults, getQualifyingResults } from '../services/api';
+import { getQualifyingResults, getRaceById, getRaceResults } from '../services/api';
 import { queryKeys } from '../services/queryKeys';
 import {
-  Box, Typography, CircularProgress, Alert, Card, useMediaQuery,
-  Paper, Tabs, Tab, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, Avatar, Chip, Stack, ToggleButtonGroup, useTheme,
-  ToggleButton, Grid, List, ListItem, ListItemAvatar, ListItemText
+  Alert,
+  Avatar,
+  Box,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Divider,
+  Grid,
+  List,
+  ListItem,
+  ListItemAvatar,
+  ListItemText,
+  Paper,
+  Stack,
+  Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tabs,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
-import { EmojiEvents, Timer, Speed, SportsScore } from '@mui/icons-material';
-import { format } from 'date-fns';
+import {
+  CalendarToday,
+  EmojiEvents,
+  Flag,
+  LocationOn,
+  SportsScore,
+  Speed,
+  Timer,
+  WorkspacePremium,
+} from '@mui/icons-material';
+import { differenceInCalendarDays, format, isAfter, isBefore } from 'date-fns';
 import { it } from 'date-fns/locale';
+import { EmptyState } from '../components/ui/EmptyState';
+import { MetricTile } from '../components/ui/MetricTile';
+
+type Category = 'MOTOGP' | 'MOTO2' | 'MOTO3';
+type RaceSession = 'race' | 'sprint' | 'qualifying' | 'fp1' | 'fp2' | 'pr';
 
 interface RaceResult {
   rider: {
@@ -22,7 +60,7 @@ interface RaceResult {
     team: string;
     category: string;
   };
-  position: number;
+  position: number | null;
   status: string;
   points?: number;
   time?: string;
@@ -34,160 +72,151 @@ interface RaceResult {
   };
 }
 
-const categoryColors = {
+const CATEGORIES: Category[] = ['MOTOGP', 'MOTO2', 'MOTO3'];
+const SESSION_OPTIONS: Array<{ value: RaceSession; label: string; icon?: ReactNode; sprintOnly?: boolean }> = [
+  { value: 'race', label: 'Gara', icon: <SportsScore fontSize="small" /> },
+  { value: 'sprint', label: 'Sprint', icon: <Speed fontSize="small" />, sprintOnly: true },
+  { value: 'qualifying', label: 'Qualifiche', icon: <Timer fontSize="small" /> },
+  { value: 'pr', label: 'PR' },
+  { value: 'fp2', label: 'FP2' },
+  { value: 'fp1', label: 'FP1' },
+];
+
+const categoryColors: Record<Category, string> = {
   MOTOGP: '#E60023',
   MOTO2: '#FF6B00',
   MOTO3: '#1976D2',
 };
 
-function TabPanel(props: any) {
-  const { children, value, index, ...other } = props;
+function TabPanel({ children, value, index }: { children: ReactNode; value: number; index: number }) {
   return (
-    <div hidden={value !== index} {...other}>
+    <Box role="tabpanel" hidden={value !== index}>
       {value === index && <Box sx={{ p: { xs: 2, sm: 3 } }}>{children}</Box>}
-    </div>
+    </Box>
   );
 }
 
-// Componente Mobile per visualizzare un risultato
-function MobileResultCard({ result, index, selectedSession }: {
-  result: RaceResult;
-  index: number;
-  selectedSession: string;
-}) {
-  const isPodium = result.position <= 3;
+function isRaceOrSprint(session: RaceSession) {
+  return session === 'race' || session === 'sprint';
+}
+
+function getWeekendStatus(race: any) {
+  const now = new Date();
+  const startDate = new Date(race.startDate);
+  const endDate = new Date(race.endDate);
+
+  if (isAfter(now, endDate)) return { label: 'Conclusa', color: 'default' as const };
+  if (isAfter(now, startDate) && isBefore(now, endDate)) return { label: 'Weekend live', color: 'error' as const };
+
+  const days = differenceInCalendarDays(startDate, now);
+  if (days === 0) return { label: 'Oggi', color: 'warning' as const };
+  if (days === 1) return { label: 'Domani', color: 'warning' as const };
+  return { label: `${Math.max(0, days)} giorni`, color: 'success' as const };
+}
+
+function podiumColor(position: number | null) {
+  if (position === 1) return '#FFD700';
+  if (position === 2) return '#C0C0C0';
+  if (position === 3) return '#CD7F32';
+  return 'primary.main';
+}
+
+function resultPositionLabel(result: RaceResult) {
+  if (result.status && result.status !== 'FINISHED') return result.status;
+  return result.position ?? '-';
+}
+
+function PodiumStrip({ results }: { results: RaceResult[] }) {
+  const podium = results
+    .filter((result) => typeof result.position === 'number' && result.position <= 3)
+    .sort((a, b) => (a.position || 99) - (b.position || 99));
+
+  if (podium.length === 0) return null;
+
+  return (
+    <Grid container spacing={1.5} sx={{ mb: 3 }}>
+      {podium.map((result) => (
+        <Grid key={result.rider.id} size={{ xs: 12, sm: 4 }}>
+          <Paper
+            sx={{
+              p: 1.75,
+              height: '100%',
+              border: '1px solid',
+              borderColor: `${podiumColor(result.position)}66`,
+              background: `linear-gradient(135deg, ${podiumColor(result.position)}22, rgba(26,26,35,0.92) 70%)`,
+            }}
+          >
+            <Stack direction="row" spacing={1.25} alignItems="center">
+              <WorkspacePremium sx={{ color: podiumColor(result.position), fontSize: 34 }} />
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="caption" color="text.secondary" fontWeight={800}>
+                  P{result.position}
+                </Typography>
+                <Typography fontWeight={900} noWrap>
+                  {result.rider.name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" noWrap>
+                  {result.rider.team}
+                </Typography>
+              </Box>
+              <Typography variant="h6" color="primary.main" fontWeight={900} sx={{ ml: 'auto' }}>
+                {result.points ?? 0}
+              </Typography>
+            </Stack>
+          </Paper>
+        </Grid>
+      ))}
+    </Grid>
+  );
+}
+
+function MobileResultCard({ result, selectedSession }: { result: RaceResult; selectedSession: RaceSession }) {
+  const isPodium = typeof result.position === 'number' && result.position <= 3;
   const isDNF = result.status !== 'FINISHED';
-  const isRaceOrSprint = selectedSession === 'race' || selectedSession === 'sprint';
+  const showPoints = isRaceOrSprint(selectedSession);
 
   return (
     <Card
       sx={{
-        mb: 1,
         borderLeft: isPodium ? 4 : 0,
-        borderColor: isPodium ?
-          (result.position === 1 ? '#FFD700' : result.position === 2 ? '#C0C0C0' : '#CD7F32')
-          : 'transparent',
-        backgroundColor: isDNF ? 'rgba(255, 0, 0, 0.05)' : 'inherit'
+        borderColor: isPodium ? podiumColor(result.position) : 'transparent',
+        backgroundColor: isDNF ? 'rgba(255, 0, 0, 0.05)' : 'background.paper',
       }}
     >
-      <Box sx={{ p: 1.5 }}>
-        {/* Prima riga: Posizione, Numero, Nome */}
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            mb: 1
-          }}
-        >
-          {/* Posizione */}
-          <Box
-            sx={{
-              minWidth: 35,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            {isPodium && (
-              <EmojiEvents
-                sx={{
-                  fontSize: 18,
-                  color: result.position === 1 ? '#FFD700' :
-                         result.position === 2 ? '#C0C0C0' : '#CD7F32',
-                  mr: 0.5
-                }}
-              />
-            )}
-            <Typography
-              variant={isPodium ? "subtitle1" : "body2"}
-              fontWeight={isPodium ? "bold" : "medium"}
-              color={isDNF ? "error" : "text.primary"}
-            >
-              {isDNF ? 'DNF' : result.position}
+      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+        <Stack direction="row" spacing={1.25} alignItems="center">
+          <Box sx={{ width: 40, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {isPodium && <EmojiEvents sx={{ fontSize: 18, color: podiumColor(result.position) }} />}
+            <Typography fontWeight={900} color={isDNF ? 'error.main' : 'text.primary'}>
+              {resultPositionLabel(result)}
             </Typography>
           </Box>
-
-          {/* Numero */}
-          <Avatar
-            sx={{
-              width: 28,
-              height: 28,
-              fontSize: '0.75rem',
-              bgcolor: 'primary.main'
-            }}
-          >
+          <Avatar sx={{ width: 30, height: 30, fontSize: '0.75rem', bgcolor: 'primary.main' }}>
             {result.rider.number}
           </Avatar>
-
-          {/* Nome Pilota */}
-          <Box sx={{ flexGrow: 1 }}>
-            <Typography variant="body2" fontWeight="medium" noWrap>
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+            <Typography variant="body2" fontWeight={800} noWrap>
               {result.rider.name}
             </Typography>
-          </Box>
-
-          {/* Punti (solo per gara/sprint) */}
-          {isRaceOrSprint && (
-            <Typography variant="subtitle1" fontWeight="bold" color="primary">
-              {result.points || 0} pt
+            <Typography variant="caption" color="text.secondary" noWrap>
+              {result.rider.team}
             </Typography>
+          </Box>
+          {showPoints && (
+            <Chip
+              label={`${result.points || 0} pt`}
+              size="small"
+              color={result.points ? 'primary' : 'default'}
+              sx={{ fontWeight: 800 }}
+            />
           )}
-        </Box>
-
-        {/* Seconda riga: Team */}
-        <Box sx={{ mb: 0.5 }}>
-          <Typography variant="caption" color="text.secondary" noWrap>
-            {result.rider.team}
-          </Typography>
-        </Box>
-
-        {/* Terza riga: Dati specifici per tipo di sessione */}
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 1
-          }}
-        >
-          {isRaceOrSprint ? (
-            <>
-              {/* Time */}
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Time: {result.time || result.gap || '-'}
-                </Typography>
-              </Box>
-
-              {/* Laps */}
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Giri: {result.totalLaps || '-'}
-                </Typography>
-              </Box>
-
-              {/* Status se non è FINISHED */}
-              {isDNF && (
-                <Chip
-                  label={result.status}
-                  size="small"
-                  color="error"
-                  sx={{ height: 20, fontSize: '0.65rem' }}
-                />
-              )}
-            </>
-          ) : (
-            /* FP1, FP2, PR, Qualifiche - Solo Giro Veloce */
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Giro veloce: {result.bestLap?.time || '-'}
-              </Typography>
-            </Box>
-          )}
-        </Box>
-      </Box>
+        </Stack>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+          <Chip size="small" variant="outlined" label={result.time || result.gap || result.bestLap?.time || '-'} />
+          {showPoints && <Chip size="small" variant="outlined" label={`${result.totalLaps || '-'} giri`} />}
+          {isDNF && <Chip size="small" color="error" label={result.status} />}
+        </Stack>
+      </CardContent>
     </Card>
   );
 }
@@ -199,8 +228,8 @@ export default function RaceDetailPage() {
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   const [tabValue, setTabValue] = useState(0);
-  const [selectedCategory, setSelectedCategory] = useState<'MOTOGP' | 'MOTO2' | 'MOTO3'>('MOTOGP');
-  const [selectedSession, setSelectedSession] = useState<'race' | 'sprint' | 'qualifying' | 'fp1' | 'fp2' | 'pr'>('race');
+  const [selectedCategory, setSelectedCategory] = useState<Category>('MOTOGP');
+  const [selectedSession, setSelectedSession] = useState<RaceSession>('race');
 
   const { data: raceData, isLoading: loadingRace } = useQuery({
     queryKey: queryKeys.races.detail(raceId),
@@ -208,29 +237,25 @@ export default function RaceDetailPage() {
     enabled: !!raceId,
   });
 
-  // Query per risultati gara e sprint
   const { data: raceResultsData, isLoading: loadingRaceResults } = useQuery({
     queryKey: queryKeys.races.results(raceId),
     queryFn: () => getRaceResults(raceId!),
     enabled: !!raceId && !!raceData,
   });
 
-  // Query per risultati qualifiche
   const { data: qualifyingData, isLoading: loadingQualifying } = useQuery({
     queryKey: queryKeys.races.qualifying(raceId),
     queryFn: () => getQualifyingResults(raceId!),
     enabled: !!raceId && !!raceData && selectedSession === 'qualifying',
   });
 
-  // Query per risultati prove libere
   const { data: practiceData, isLoading: loadingPractice } = useQuery({
     queryKey: queryKeys.races.practice(raceId, selectedSession),
     queryFn: () => getRaceResults(raceId!, selectedSession as 'fp1' | 'fp2' | 'pr'),
     enabled: !!raceId && !!raceData && (selectedSession === 'fp1' || selectedSession === 'fp2' || selectedSession === 'pr'),
   });
 
-  // Calcola i risultati da mostrare basandosi sulla sessione e categoria selezionate
-  const categoryResults = useMemo(() => {
+  const categoryResults: RaceResult[] = useMemo(() => {
     if (selectedSession === 'qualifying') {
       return qualifyingData?.results?.[selectedCategory] || [];
     }
@@ -241,13 +266,14 @@ export default function RaceDetailPage() {
     }
 
     const sessionKey = selectedSession.toUpperCase() as 'RACE' | 'SPRINT';
-    const sessionResults = raceResultsData?.results?.[sessionKey];
-    return sessionResults?.[selectedCategory] || [];
+    return raceResultsData?.results?.[sessionKey]?.[selectedCategory] || [];
   }, [selectedSession, selectedCategory, raceResultsData, qualifyingData, practiceData]);
 
-  const loadingResults = selectedSession === 'qualifying' ? loadingQualifying :
-                         (selectedSession === 'fp1' || selectedSession === 'fp2' || selectedSession === 'pr') ? loadingPractice :
-                         loadingRaceResults;
+  const loadingResults = selectedSession === 'qualifying'
+    ? loadingQualifying
+    : (selectedSession === 'fp1' || selectedSession === 'fp2' || selectedSession === 'pr')
+    ? loadingPractice
+    : loadingRaceResults;
 
   if (loadingRace) {
     return (
@@ -257,529 +283,342 @@ export default function RaceDetailPage() {
     );
   }
 
-  if (!raceData) {
+  if (!raceData?.race) {
     return <Alert severity="error">Gara non trovata</Alert>;
   }
 
   const race = raceData.race;
-  const hasResults = raceResultsData?.results && Object.keys(raceResultsData.results).length > 0;
   const hasSprint = !!race.sprintDate;
+  const weekendStatus = getWeekendStatus(race);
 
   return (
     <Box className="fade-in" sx={{ pb: 2 }}>
-      {/* Header - Responsive */}
       <Paper
         sx={{
-          p: isMobile ? 2 : 4,
-          mb: isMobile ? 2 : 4,
-          background: `linear-gradient(135deg, rgba(230,0,35,0.8), rgba(20,20,20,0.9))`,
-          color: 'white',
+          p: { xs: 2, md: 3 },
+          mb: 2,
+          overflow: 'hidden',
+          position: 'relative',
+          border: '1px solid rgba(230,0,35,0.28)',
+          background: `
+            linear-gradient(135deg, rgba(230,0,35,0.50), rgba(15,15,19,0.98) 58%),
+            radial-gradient(circle at 90% 8%, rgba(255,107,0,0.24), transparent 28%)
+          `,
         }}
       >
-        <Stack
-          direction={isMobile ? "column" : "row"}
-          justifyContent="space-between"
-          alignItems={isMobile ? "flex-start" : "flex-start"}
-          spacing={2}
-        >
-          <Box>
+        {race.trackLayoutUrl && (
+          <Box
+            sx={{
+              position: 'absolute',
+              right: { xs: -70, md: 16 },
+              top: { xs: 16, md: -6 },
+              width: { xs: 220, md: 320 },
+              height: { xs: 180, md: 250 },
+              backgroundImage: `url(${race.trackLayoutUrl})`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'center',
+              backgroundSize: 'contain',
+              opacity: 0.1,
+            }}
+          />
+        )}
+
+        <Grid container spacing={2} alignItems="center" sx={{ position: 'relative' }}>
+          <Grid size={{ xs: 12, md: 8 }}>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
+              <Chip label={`Round ${race.round}`} color="secondary" size="small" />
+              <Chip label={weekendStatus.label} color={weekendStatus.color} size="small" />
+            </Stack>
             <Typography
-              variant="overline"
-              sx={{
-                opacity: 0.8,
-                fontSize: isMobile ? '0.7rem' : '0.75rem'
-              }}
-            >
-              Round {race.round} - {race.season}
-            </Typography>
-            <Typography
-              variant={isMobile ? "h4" : "h3"}
-              gutterBottom
-              sx={{ fontSize: isMobile ? '1.75rem' : '3rem' }}
+              variant={isMobile ? 'h4' : 'h3'}
+              sx={{ fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.02 }}
             >
               {race.name}
             </Typography>
-            <Typography
-              variant={isMobile ? "h6" : "h5"}
-              sx={{
-                opacity: 0.9,
-                fontSize: isMobile ? '1rem' : '1.5rem'
-              }}
-            >
-              {race.circuit}
-            </Typography>
-            <Stack
-              direction={isMobile ? "column" : "row"}
-              spacing={1}
-              sx={{ mt: 2 }}
-            >
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+              <LocationOn fontSize="small" color="primary" />
+              <Typography color="text.secondary">
+                {race.circuit}, {race.country}
+              </Typography>
+            </Stack>
+          </Grid>
+
+          <Grid size={{ xs: 12, md: 4 }}>
+            <Stack direction={{ xs: 'row', md: 'column' }} spacing={1} justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
               <Chip
+                icon={<CalendarToday />}
                 label={format(new Date(race.gpDate), 'dd MMMM yyyy', { locale: it })}
-                size={isMobile ? "small" : "medium"}
-                sx={{
-                  backgroundColor: 'rgba(255,255,255,0.2)',
-                  color: 'white',
-                  width: isMobile ? 'fit-content' : 'auto'
-                }}
+                sx={{ bgcolor: 'rgba(255,255,255,0.14)', color: 'white' }}
               />
-              {race.status === 'FINISHED' && (
+              {race.sprintDate && (
                 <Chip
-                  label="Completata"
-                  color="success"
-                  size={isMobile ? "small" : "medium"}
+                  icon={<Speed />}
+                  label={`Sprint ${format(new Date(race.sprintDate), 'dd MMM', { locale: it })}`}
+                  sx={{ bgcolor: 'rgba(255,255,255,0.14)', color: 'white' }}
                 />
               )}
             </Stack>
-          </Box>
-          {!isMobile && (
-            <Box sx={{ textAlign: 'right' }}>
-              <Typography variant="h1" sx={{ fontSize: 120, opacity: 0.2 }}>
-                {race.round}
-              </Typography>
-            </Box>
-          )}
-        </Stack>
+          </Grid>
+        </Grid>
       </Paper>
 
-      {/* Tabs */}
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <MetricTile label="Stagione" value={race.season} helper="campionato" icon={<Flag />} />
+        </Grid>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <MetricTile label="GP" value={format(new Date(race.gpDate), 'dd MMM', { locale: it })} helper="gara principale" icon={<SportsScore />} tone="secondary" />
+        </Grid>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <MetricTile label="Sprint" value={race.sprintDate ? format(new Date(race.sprintDate), 'dd MMM', { locale: it }) : '-'} helper={hasSprint ? 'weekend sprint' : 'non prevista'} icon={<Speed />} tone={hasSprint ? 'warning' : 'info'} />
+        </Grid>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <MetricTile label="Risultati" value={categoryResults.length || '-'} helper={`${selectedSession.toUpperCase()} ${selectedCategory}`} icon={<EmojiEvents />} tone={categoryResults.length ? 'success' : 'primary'} />
+        </Grid>
+      </Grid>
+
       <Card>
         <Tabs
           value={tabValue}
           onChange={(_, v) => setTabValue(v)}
-          variant={isMobile ? "fullWidth" : "standard"}
-          scrollButtons={isMobile ? false : "auto"}
+          variant={isMobile ? 'fullWidth' : 'standard'}
         >
           <Tab label="Risultati" />
-          <Tab label="Info Gara" />
+          <Tab label="Info gara" />
           <Tab label="Statistiche" />
         </Tabs>
 
-        {/* Tab Risultati - Responsive */}
         <TabPanel value={tabValue} index={0}>
-          {hasResults ? (
-            <>
-              {/* Selettore Sessione - Responsive */}
-              <Box sx={{ mb: 3 }}>
-                <Typography
-                  variant="subtitle2"
-                  gutterBottom
-                  sx={{
-                    fontSize: isMobile ? '0.875rem' : '1rem',
-                    fontWeight: 'medium',
-                    color: 'text.primary',
-                    mb: 1.5
-                  }}
-                >
-                  Seleziona Sessione
-                </Typography>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    gap: 1,
-                    flexWrap: 'wrap',
-                    justifyContent: isMobile ? 'center' : 'flex-start'
-                  }}
-                >
-                  <ToggleButtonGroup
-                    value={selectedSession}
-                    exclusive
-                    onChange={(_, value) => value && setSelectedSession(value)}
-                    size={isMobile ? "small" : "medium"}
-                    sx={{
-                      '& .MuiToggleButton-root': {
-                        borderColor: 'divider',
-                        color: 'text.secondary',
-                        '&.Mui-selected': {
-                          backgroundColor: 'primary.main',
-                          color: 'white',
-                          fontWeight: 'bold',
-                          '&:hover': {
-                            backgroundColor: 'primary.dark',
-                          }
-                        },
-                        '&:hover': {
-                          backgroundColor: 'action.hover',
-                        }
-                      }
-                    }}
-                  >
-                    <ToggleButton value="race">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <SportsScore sx={{ fontSize: isMobile ? 16 : 18 }} />
-                        <Typography variant={isMobile ? "caption" : "body2"}>
-                          Gara
-                        </Typography>
-                      </Box>
-                    </ToggleButton>
-                    {hasSprint && (
-                      <ToggleButton value="sprint">
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <Speed sx={{ fontSize: isMobile ? 16 : 18 }} />
-                          <Typography variant={isMobile ? "caption" : "body2"}>
-                            Sprint
-                          </Typography>
-                        </Box>
-                      </ToggleButton>
-                    )}
-                    <ToggleButton value="qualifying">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Timer sx={{ fontSize: isMobile ? 16 : 18 }} />
-                        <Typography variant={isMobile ? "caption" : "body2"}>
-                          Qualifiche
-                        </Typography>
-                      </Box>
-                    </ToggleButton>
-                    <ToggleButton value="fp2">
-                      <Typography variant={isMobile ? "caption" : "body2"}>
-                        FP2
-                      </Typography>
-                    </ToggleButton>
-                     <ToggleButton value="pr">
-                      <Typography variant={isMobile ? "caption" : "body2"}>
-                        PR
-                      </Typography>
-                    </ToggleButton>
-                    <ToggleButton value="fp1">
-                      <Typography variant={isMobile ? "caption" : "body2"}>
-                        FP1
-                      </Typography>
-                    </ToggleButton>
-                  </ToggleButtonGroup>
-                </Box>
-              </Box>
-
-              {/* Selettore Categoria - Responsive */}
-              <Box sx={{ mb: 3 }}>
-                <Typography
-                  variant="subtitle2"
-                  gutterBottom
-                  sx={{
-                    fontSize: isMobile ? '0.875rem' : '1rem',
-                    fontWeight: 'medium',
-                    color: 'text.primary',
-                    mb: 1.5
-                  }}
-                >
-                  Categoria
-                </Typography>
-                <ToggleButtonGroup
-                  value={selectedCategory}
-                  exclusive
-                  onChange={(_, value) => value && setSelectedCategory(value)}
-                  fullWidth={isMobile}
-                  size={isMobile ? "small" : "medium"}
-                  sx={{
-                    '& .MuiToggleButton-root': {
-                      '&.Mui-selected': {
-                        backgroundColor: 'action.selected',
-                        borderColor: 'primary.main',
-                        '&:hover': {
-                          backgroundColor: 'action.hover',
-                        }
-                      }
-                    }
-                  }}
-                >
-                  {['MOTOGP', 'MOTO2', 'MOTO3'].map(cat => (
-                    <ToggleButton
-                      key={cat}
-                      value={cat}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid size={{ xs: 12, md: 7 }}>
+              <Typography variant="subtitle2" gutterBottom fontWeight={900}>
+                Sessione
+              </Typography>
+              <ToggleButtonGroup
+                value={selectedSession}
+                exclusive
+                onChange={(_, value) => value && setSelectedSession(value)}
+                size={isMobile ? 'small' : 'medium'}
+                sx={{ flexWrap: 'wrap', gap: 1 }}
+              >
+                {SESSION_OPTIONS.filter((option) => !option.sprintOnly || hasSprint).map((option) => (
+                  <ToggleButton key={option.value} value={option.value}>
+                    <Stack direction="row" spacing={0.5} alignItems="center">
+                      {option.icon}
+                      <Typography variant="body2">{option.label}</Typography>
+                    </Stack>
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+            </Grid>
+            <Grid size={{ xs: 12, md: 5 }}>
+              <Typography variant="subtitle2" gutterBottom fontWeight={900}>
+                Categoria
+              </Typography>
+              <ToggleButtonGroup
+                value={selectedCategory}
+                exclusive
+                onChange={(_, value) => value && setSelectedCategory(value)}
+                fullWidth
+                size={isMobile ? 'small' : 'medium'}
+              >
+                {CATEGORIES.map((category) => (
+                  <ToggleButton key={category} value={category}>
+                    <Chip
+                      label={category}
+                      size="small"
                       sx={{
-                        '&.Mui-selected .MuiChip-root': {
-                          transform: 'scale(1.1)',
-                          boxShadow: 2
-                        }
+                        bgcolor: categoryColors[category],
+                        color: 'white',
+                        fontWeight: 900,
                       }}
-                    >
-                      <Chip
-                        label={cat}
-                        size="small"
-                        sx={{
-                          backgroundColor: categoryColors[cat as keyof typeof categoryColors],
-                          color: 'white',
-                          fontSize: isMobile ? '0.7rem' : '0.75rem',
-                          fontWeight: selectedCategory === cat ? 'bold' : 'normal',
-                          transition: 'all 0.2s ease'
-                        }}
-                      />
-                    </ToggleButton>
-                  ))}
-                </ToggleButtonGroup>
-              </Box>
+                    />
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+            </Grid>
+          </Grid>
 
-              {/* Risultati - Layout Responsive */}
-              {loadingResults ? (
-                <Box display="flex" justifyContent="center" p={4}>
-                  <CircularProgress />
-                </Box>
-              ) : categoryResults.length > 0 ? (
-                isMobile ? (
-                  // Layout Mobile - Cards
-                  <Box>
-                    {categoryResults.map((result: RaceResult, index: number) => (
-                      <MobileResultCard
-                        key={`${result.rider.id}-${index}`}
-                        result={result}
-                        index={index}
-                        selectedSession={selectedSession}
-                      />
-                    ))}
-                  </Box>
-                ) : (
-                  // Layout Desktop - Tabella
-                  <TableContainer component={Paper} elevation={0}>
-                    <Table size={isTablet ? "small" : "medium"}>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Pos</TableCell>
-                          <TableCell>Pilota</TableCell>
-                          <TableCell>Team</TableCell>
-                          {(selectedSession === 'race' || selectedSession === 'sprint') ? (
+          {isRaceOrSprint(selectedSession) && <PodiumStrip results={categoryResults} />}
+
+          {loadingResults ? (
+            <Box display="flex" justifyContent="center" p={4}>
+              <CircularProgress />
+            </Box>
+          ) : categoryResults.length > 0 ? (
+            isMobile ? (
+              <Stack spacing={1}>
+                {categoryResults.map((result, index) => (
+                  <MobileResultCard
+                    key={`${result.rider.id}-${index}`}
+                    result={result}
+                    selectedSession={selectedSession}
+                  />
+                ))}
+              </Stack>
+            ) : (
+              <TableContainer component={Paper} elevation={0}>
+                <Table size={isTablet ? 'small' : 'medium'}>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Pos</TableCell>
+                      <TableCell>Pilota</TableCell>
+                      <TableCell>Team</TableCell>
+                      {isRaceOrSprint(selectedSession) ? (
+                        <>
+                          <TableCell align="right">Tempo/Gap</TableCell>
+                          <TableCell align="right">Giri</TableCell>
+                          <TableCell align="right">Punti</TableCell>
+                        </>
+                      ) : (
+                        <TableCell align="right">Giro veloce</TableCell>
+                      )}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {categoryResults.map((result, index) => {
+                      const isPodium = typeof result.position === 'number' && result.position <= 3;
+                      const isDNF = result.status !== 'FINISHED';
+
+                      return (
+                        <TableRow
+                          key={`${result.rider.id}-${index}`}
+                          sx={{
+                            backgroundColor: isPodium ? `${podiumColor(result.position)}18` : 'inherit',
+                            '&:hover': { backgroundColor: 'action.hover' },
+                          }}
+                        >
+                          <TableCell>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              {isPodium && <EmojiEvents sx={{ color: podiumColor(result.position), fontSize: 20 }} />}
+                              <Typography fontWeight={isPodium ? 900 : 600} color={isDNF ? 'error.main' : 'inherit'}>
+                                {resultPositionLabel(result)}
+                              </Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Avatar sx={{ width: 30, height: 30, fontSize: '0.8rem', bgcolor: 'primary.main' }}>
+                                {result.rider.number}
+                              </Avatar>
+                              <Typography fontWeight={800}>{result.rider.name}</Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" color="text.secondary">
+                              {result.rider.team}
+                            </Typography>
+                          </TableCell>
+                          {isRaceOrSprint(selectedSession) ? (
                             <>
-                              <TableCell align="right">Time</TableCell>
-                              <TableCell align="right">Laps</TableCell>
-                              <TableCell align="right">Punti</TableCell>
-                            </>
-                          ) : (
-                            <TableCell align="right">Giro Veloce</TableCell>
-                          )}
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {categoryResults.map((result: RaceResult, index: number) => {
-                          const isPodium = result.position <= 3;
-                          const isDNF = result.status !== 'FINISHED';
-                          const isRaceOrSprint = selectedSession === 'race' || selectedSession === 'sprint';
-
-                          return (
-                            <TableRow
-                              key={`${result.rider.id}-${index}`}
-                              sx={{
-                                backgroundColor: isPodium ?
-                                  `${result.position === 1 ? '#FFD700' :
-                                     result.position === 2 ? '#C0C0C0' : '#CD7F32'}22`
-                                  : 'inherit',
-                                '&:hover': { backgroundColor: 'action.hover' }
-                              }}
-                            >
-                              <TableCell>
-                                <Box display="flex" alignItems="center" gap={1}>
-                                  {isPodium && (
-                                    <EmojiEvents sx={{
-                                      fontSize: 20,
-                                      color: result.position === 1 ? '#FFD700' :
-                                             result.position === 2 ? '#C0C0C0' : '#CD7F32'
-                                    }}/>
-                                  )}
-                                  <Typography
-                                    fontWeight={isPodium ? 'bold' : 'normal'}
-                                    color={isDNF ? 'error' : 'inherit'}
-                                  >
-                                    {isDNF ? result.status : result.position}
-                                  </Typography>
-                                </Box>
-                              </TableCell>
-                              <TableCell>
-                                <Box display="flex" alignItems="center" gap={1}>
-                                  <Avatar
-                                    sx={{
-                                      width: 28,
-                                      height: 28,
-                                      fontSize: '0.875rem',
-                                      bgcolor: 'primary.main'
-                                    }}
-                                  >
-                                    {result.rider.number}
-                                  </Avatar>
-                                  <Typography fontWeight="medium">
-                                    {result.rider.name}
-                                  </Typography>
-                                </Box>
-                              </TableCell>
-                              <TableCell>
-                                <Typography variant="body2" color="text.secondary">
-                                  {result.rider.team}
+                              <TableCell align="right">{result.time || result.gap || '-'}</TableCell>
+                              <TableCell align="right">{result.totalLaps || '-'}</TableCell>
+                              <TableCell align="right">
+                                <Typography fontWeight={900} color="primary.main">
+                                  {result.points || 0}
                                 </Typography>
                               </TableCell>
-                              {isRaceOrSprint ? (
-                                <>
-                                  <TableCell align="right">
-                                    {result.time || result.gap || '-'}
-                                  </TableCell>
-                                  <TableCell align="right">
-                                    {result.totalLaps || '-'}
-                                  </TableCell>
-                                  <TableCell align="right">
-                                    <Typography fontWeight="bold" color="primary">
-                                      {result.points || 0}
-                                    </Typography>
-                                  </TableCell>
-                                </>
-                              ) : (
-                                <TableCell align="right">
-                                  <Typography variant="body2">
-                                    {result.bestLap?.time || '-'}
-                                  </Typography>
-                                </TableCell>
-                              )}
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                )
-              ) : (
-                <Alert severity="info">
-                  Nessun risultato disponibile per {
-                    selectedSession === 'qualifying' ? 'Qualifiche' :
-                    selectedSession === 'sprint' ? 'Sprint' :
-                    selectedSession === 'fp1' ? 'Prove Libere 1' :
-                    selectedSession === 'fp2' ? 'Prove Libere 2' :
-                    selectedSession === 'pr' ? 'Prequalifiche' : 'Gara'
-                  }
-                </Alert>
-              )}
-            </>
+                            </>
+                          ) : (
+                            <TableCell align="right">{result.bestLap?.time || '-'}</TableCell>
+                          )}
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )
           ) : (
-            <Alert severity="info">
-              I risultati di questa gara non sono ancora disponibili
-            </Alert>
+            <EmptyState
+              icon={<SportsScore sx={{ fontSize: 54 }} />}
+              title="Risultati non disponibili"
+              description={`Non ci sono ancora dati per ${selectedSession.toUpperCase()} ${selectedCategory}.`}
+            />
           )}
         </TabPanel>
 
-        {/* Tab Info Gara - Responsive */}
         <TabPanel value={tabValue} index={1}>
-          <Grid container spacing={isMobile ? 2 : 3}>
-            <Grid size={{ xs: 12, md: 6}}>
-              <Typography
-                variant={isMobile ? "subtitle1" : "h6"}
-                gutterBottom
-              >
-                Dettagli Circuito
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Typography variant="h6" fontWeight={900} gutterBottom>
+                Dettagli circuito
               </Typography>
-              <List dense={isMobile}>
+              <List>
                 <ListItem>
-                  <ListItemText
-                    primary="Circuito"
-                    secondary={race.circuit}
-                    primaryTypographyProps={{
-                      fontSize: isMobile ? '0.875rem' : '1rem'
-                    }}
-                  />
+                  <ListItemAvatar><Avatar><LocationOn /></Avatar></ListItemAvatar>
+                  <ListItemText primary="Circuito" secondary={race.circuit} />
                 </ListItem>
                 <ListItem>
-                  <ListItemText
-                    primary="Paese"
-                    secondary={race.country}
-                    primaryTypographyProps={{
-                      fontSize: isMobile ? '0.875rem' : '1rem'
-                    }}
-                  />
+                  <ListItemAvatar><Avatar><Flag /></Avatar></ListItemAvatar>
+                  <ListItemText primary="Paese" secondary={race.country} />
                 </ListItem>
                 <ListItem>
-                  <ListItemText
-                    primary="Data GP"
-                    secondary={format(new Date(race.gpDate), 'dd MMMM yyyy', { locale: it })}
-                    primaryTypographyProps={{
-                      fontSize: isMobile ? '0.875rem' : '1rem'
-                    }}
-                  />
+                  <ListItemAvatar><Avatar><CalendarToday /></Avatar></ListItemAvatar>
+                  <ListItemText primary="Data GP" secondary={format(new Date(race.gpDate), 'dd MMMM yyyy', { locale: it })} />
                 </ListItem>
-                {race.sprintDate && (
-                  <ListItem>
-                    <ListItemText
-                      primary="Data Sprint"
-                      secondary={format(new Date(race.sprintDate), 'dd MMMM yyyy', { locale: it })}
-                      primaryTypographyProps={{
-                        fontSize: isMobile ? '0.875rem' : '1rem'
-                      }}
-                    />
-                  </ListItem>
-                )}
               </List>
             </Grid>
-            <Grid size={{ xs: 12, md: 6}}>
-              <Typography
-                variant={isMobile ? "subtitle1" : "h6"}
-                gutterBottom
-              >
-                Programma Weekend
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Typography variant="h6" fontWeight={900} gutterBottom>
+                Weekend
               </Typography>
-              <List dense={isMobile}>
-                <ListItem>
-                  <ListItemAvatar>
-                    <Avatar
-                      sx={{
-                        bgcolor: 'primary.main',
-                        width: isMobile ? 32 : 40,
-                        height: isMobile ? 32 : 40,
-                        fontSize: isMobile ? '0.75rem' : '1rem'
-                      }}
-                    >
-                      FP1
-                    </Avatar>
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary="Prove Libere 1"
-                    secondary="Venerdì mattina"
-                    primaryTypographyProps={{
-                      fontSize: isMobile ? '0.875rem' : '1rem'
-                    }}
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemAvatar>
-                    <Avatar
-                      sx={{
-                        bgcolor: 'primary.main',
-                        width: isMobile ? 32 : 40,
-                        height: isMobile ? 32 : 40,
-                        fontSize: isMobile ? '0.75rem' : '1rem'
-                      }}
-                    >
-                      FP2
-                    </Avatar>
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary="Prove Libere 2"
-                    secondary="Venerdì pomeriggio"
-                    primaryTypographyProps={{
-                      fontSize: isMobile ? '0.875rem' : '1rem'
-                    }}
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemAvatar>
-                    <Avatar
-                      sx={{
-                        bgcolor: 'secondary.main',
-                        width: isMobile ? 32 : 40,
-                        height: isMobile ? 32 : 40,
-                        fontSize: isMobile ? '0.75rem' : '1rem'
-                      }}
-                    >
-                      Q
-                    </Avatar>
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary="Qualifiche"
-                    secondary="Sabato pomeriggio"
-                    primaryTypographyProps={{
-                      fontSize: isMobile ? '0.875rem' : '1rem'
-                    }}
-                  />
-                </ListItem>
+              <List>
+                {[
+                  ['FP1', 'Prime prove libere'],
+                  ['PR', 'Prequalifiche'],
+                  ['Q', 'Qualifiche'],
+                  ...(hasSprint ? [['S', 'Sprint']] : []),
+                  ['GP', 'Gara principale'],
+                ].map(([label, text]) => (
+                  <ListItem key={label}>
+                    <ListItemAvatar>
+                      <Avatar sx={{ bgcolor: label === 'GP' ? 'primary.main' : 'secondary.main' }}>
+                        {label}
+                      </Avatar>
+                    </ListItemAvatar>
+                    <ListItemText primary={text} secondary={label === 'GP' ? format(new Date(race.gpDate), 'dd MMM HH:mm', { locale: it }) : 'Programma ufficiale weekend'} />
+                  </ListItem>
+                ))}
               </List>
             </Grid>
           </Grid>
         </TabPanel>
 
-        {/* Tab Statistiche */}
         <TabPanel value={tabValue} index={2}>
-          <Typography variant="body1" color="text.secondary">
-            Statistiche della gara in arrivo...
-          </Typography>
+          <Grid container spacing={2}>
+            {CATEGORIES.map((category) => {
+              const raceResults = raceResultsData?.results?.RACE?.[category] || [];
+              const winner = raceResults.find((result: RaceResult) => result.position === 1);
+
+              return (
+                <Grid key={category} size={{ xs: 12, md: 4 }}>
+                  <Paper sx={{ p: 2, height: '100%' }}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                      <Typography fontWeight={900}>{category}</Typography>
+                      <Chip size="small" label={`${raceResults.length} piloti`} />
+                    </Stack>
+                    <Divider sx={{ mb: 1.5 }} />
+                    {winner ? (
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <WorkspacePremium sx={{ color: '#FFD700' }} />
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography fontWeight={800} noWrap>{winner.rider.name}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Vincitore gara, {winner.points || 0} pt
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        Statistiche disponibili dopo il caricamento risultati.
+                      </Typography>
+                    )}
+                  </Paper>
+                </Grid>
+              );
+            })}
+          </Grid>
         </TabPanel>
       </Card>
     </Box>

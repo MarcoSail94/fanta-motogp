@@ -14,6 +14,7 @@ import {
   Paper
 } from '@mui/material';
 import api from '../services/api';
+import { useNotification } from '../contexts/NotificationContext';
 
 interface LeagueSeasonResetProps {
   leagueId: string;
@@ -21,6 +22,7 @@ interface LeagueSeasonResetProps {
 }
 
 export const LeagueSeasonReset: React.FC<LeagueSeasonResetProps> = ({ leagueId, onResetComplete }) => {
+  const { notify } = useNotification();
   const [open, setOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -45,7 +47,7 @@ export const LeagueSeasonReset: React.FC<LeagueSeasonResetProps> = ({ leagueId, 
       });
       
       setOpen(false);
-      alert('Stagione resettata con successo! I team e i crediti sono stati ripristinati.');
+      notify('Stagione resettata con successo. Team e crediti sono stati ripristinati.', 'success');
       onResetComplete(); // Ricarica i dati della pagina padre
     } catch (err: any) {
       console.error(err);

@@ -131,7 +131,7 @@ export default function AdvancedStats({ data }: { data: StatsData }) {
                 justifyContent="space-between"
                 p={1.5}
                 borderRadius={1}
-                bgcolor={index === 0 ? 'warning.lighter' : 'grey.50'}
+                bgcolor={index === 0 ? 'rgba(255, 193, 7, 0.12)' : 'rgba(255,255,255,0.04)'}
               >
                 <Box display="flex" alignItems="center" gap={2}>
                   <Avatar sx={{ bgcolor: index === 0 ? 'warning.main' : 'grey.400' }}>

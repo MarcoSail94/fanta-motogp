@@ -15,6 +15,7 @@ import {
   ContentCopy, Login, Code, Check
 } from '@mui/icons-material';
 import { PageHeader } from '../components/ui/PageHeader';
+import { useNotification } from '../contexts/NotificationContext';
 
 interface League {
   id: string;
@@ -314,6 +315,7 @@ function LeagueCard({ league, onJoin, onView, isMyLeague }: {
 export default function LeaguesPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { notify } = useNotification();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
@@ -342,10 +344,10 @@ export default function LeaguesPage() {
       setJoinDialogOpen(false);
       setJoinCode('');
       setTabValue(0);
-      alert('Ti sei unito alla lega con successo!');
+      notify('Ti sei unito alla lega con successo!', 'success');
     },
     onError: (error: any) => {
-      alert(error.response?.data?.error || 'Errore durante l\'accesso alla lega');
+      notify(error.response?.data?.error || 'Errore durante l\'accesso alla lega', 'error');
     },
   });
 

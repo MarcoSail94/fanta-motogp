@@ -16,7 +16,6 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Paper,
   Alert,
   CircularProgress,
   Dialog,
@@ -48,9 +47,7 @@ import {
   CheckCircle,
   Visibility,
   VisibilityOff,
-  Delete,
   Logout,
-  Security,
   WorkspacePremium,
   Star
 } from '@mui/icons-material';
@@ -61,6 +58,9 @@ import { useNotification } from '../contexts/NotificationContext';
 import { getProfile, getMyStats } from '../services/api';
 import { queryKeys } from '../services/queryKeys';
 import api from '../services/api';
+import { EmptyState } from '../components/ui/EmptyState';
+import { MetricTile } from '../components/ui/MetricTile';
+import { PageHeader } from '../components/ui/PageHeader';
 
 interface UserStats {
   totalTeams: number;
@@ -82,7 +82,6 @@ export default function ProfilePage() {
   
   const [editMode, setEditMode] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -150,18 +149,6 @@ export default function ProfilePage() {
     }
   });
 
-  // Mutation eliminazione account
-  const deleteAccountMutation = useMutation({
-    mutationFn: () => api.delete('/auth/account'),
-    onSuccess: () => {
-      notify('Account eliminato con successo', 'success');
-      logout();
-    },
-    onError: (error: any) => {
-      notify(error.response?.data?.error || 'Errore eliminazione account', 'error');
-    }
-  });
-
   const handleSaveProfile = () => {
     updateProfileMutation.mutate(profileForm);
   };
@@ -183,18 +170,13 @@ export default function ProfilePage() {
     });
   };
 
-  const handleDeleteAccount = () => {
-    deleteAccountMutation.mutate();
-  };
-
   const handleSettingChange = (setting: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
     setSettings(prev => ({
       ...prev,
       [setting]: event.target.checked
     }));
     
-    // Salva impostazioni (potresti voler fare una chiamata API qui)
-    notify('Impostazioni aggiornate', 'success');
+    notify('Preferenza aggiornata per questa sessione', 'info');
   };
 
   if (loadingProfile) {
@@ -226,9 +208,31 @@ export default function ProfilePage() {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        Profilo Utente
-      </Typography>
+      <PageHeader
+        eyebrow="Account"
+        title="Profilo utente"
+        subtitle="Gestisci identita, sicurezza e preferenze del tuo account."
+        actions={
+          <Button variant="outlined" startIcon={<Logout />} onClick={logout}>
+            Esci
+          </Button>
+        }
+      />
+
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <MetricTile label="Team" value={stats.totalTeams} helper="attivi" icon={<SportsMotorsports />} />
+        </Grid>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <MetricTile label="Leghe" value={stats.totalLeagues} helper="iscritte" icon={<Groups />} tone="secondary" />
+        </Grid>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <MetricTile label="Punti" value={stats.totalPoints} helper="totali" icon={<EmojiEvents />} tone="warning" />
+        </Grid>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <MetricTile label="Miglior piazza" value={stats.bestPosition ? `#${stats.bestPosition}` : '-'} helper="classifica" icon={<WorkspacePremium />} tone="success" />
+        </Grid>
+      </Grid>
 
       <Grid container spacing={3}>
         {/* Colonna Sinistra - Info Profilo */}
@@ -242,7 +246,7 @@ export default function ProfilePage() {
                     width: 120, 
                     height: 120, 
                     mb: 2,
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    background: 'linear-gradient(135deg, #E60023 0%, #FF6B00 100%)',
                     fontSize: '3rem'
                   }}
                 >
@@ -365,47 +369,55 @@ export default function ProfilePage() {
               <Typography variant="h6" gutterBottom>
                 Badge e Riconoscimenti
               </Typography>
-              <Grid container spacing={2}>
-                {stats.totalWins > 0 && (
-                  <Grid size={{ xs: 4}}>
-                    <Box textAlign="center">
-                      <WorkspacePremium sx={{ color: '#FFD700', fontSize: 40 }} />
-                      <Typography variant="caption" display="block">
-                        Vincitore
-                      </Typography>
-                      <Typography variant="body2" fontWeight="bold">
-                        x{stats.totalWins}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                )}
-                {stats.totalPodiums > 0 && (
-                  <Grid size={{ xs: 4}}>
-                    <Box textAlign="center">
-                      <EmojiEvents sx={{ color: '#C0C0C0', fontSize: 40 }} />
-                      <Typography variant="caption" display="block">
-                        Podio
-                      </Typography>
-                      <Typography variant="body2" fontWeight="bold">
-                        x{stats.totalPodiums}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                )}
-                {stats.gamesPlayed >= 10 && (
-                  <Grid size={{ xs: 4}}>
-                    <Box textAlign="center">
-                      <Star sx={{ color: '#CD7F32', fontSize: 40 }} />
-                      <Typography variant="caption" display="block">
-                        Veterano
-                      </Typography>
-                      <Typography variant="body2" fontWeight="bold">
-                        10+ GP
-                      </Typography>
-                    </Box>
-                  </Grid>
-                )}
-              </Grid>
+              {stats.totalWins === 0 && stats.totalPodiums === 0 && stats.gamesPlayed < 10 ? (
+                <EmptyState
+                  icon={<WorkspacePremium sx={{ fontSize: 46 }} />}
+                  title="Badge in arrivo"
+                  description="I riconoscimenti compariranno dopo vittorie, podi e gare completate."
+                />
+              ) : (
+                <Grid container spacing={2}>
+                  {stats.totalWins > 0 && (
+                    <Grid size={{ xs: 4}}>
+                      <Box textAlign="center">
+                        <WorkspacePremium sx={{ color: '#FFD700', fontSize: 40 }} />
+                        <Typography variant="caption" display="block">
+                          Vincitore
+                        </Typography>
+                        <Typography variant="body2" fontWeight="bold">
+                          x{stats.totalWins}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  )}
+                  {stats.totalPodiums > 0 && (
+                    <Grid size={{ xs: 4}}>
+                      <Box textAlign="center">
+                        <EmojiEvents sx={{ color: '#C0C0C0', fontSize: 40 }} />
+                        <Typography variant="caption" display="block">
+                          Podio
+                        </Typography>
+                        <Typography variant="body2" fontWeight="bold">
+                          x{stats.totalPodiums}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  )}
+                  {stats.gamesPlayed >= 10 && (
+                    <Grid size={{ xs: 4}}>
+                      <Box textAlign="center">
+                        <Star sx={{ color: '#CD7F32', fontSize: 40 }} />
+                        <Typography variant="caption" display="block">
+                          Veterano
+                        </Typography>
+                        <Typography variant="body2" fontWeight="bold">
+                          10+ GP
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  )}
+                </Grid>
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -431,75 +443,27 @@ export default function ProfilePage() {
                 <>
                   <Grid container spacing={3}>
                     <Grid size={{ xs: 6, sm: 4}}>
-                      <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'primary.lighter' }}>
-                        <EmojiEvents sx={{ fontSize: 30, color: 'primary.main', mb: 1 }} />
-                        <Typography variant="h5" fontWeight="bold">
-                          {stats.totalPoints}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Punti Totali
-                        </Typography>
-                      </Paper>
+                      <MetricTile label="Punti totali" value={stats.totalPoints} icon={<EmojiEvents />} />
                     </Grid>
 
                     <Grid size={{ xs: 12, sm: 4}}>
-                      <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'success.lighter' }}>
-                        <EmojiEvents sx={{ fontSize: 30, color: 'success.main', mb: 1 }} />
-                        <Typography variant="h5" fontWeight="bold">
-                          #{stats.bestPosition || '-'}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Miglior Posizione
-                        </Typography>
-                      </Paper>
+                      <MetricTile label="Miglior posizione" value={stats.bestPosition ? `#${stats.bestPosition}` : '-'} icon={<WorkspacePremium />} tone="success" />
                     </Grid>
 
                     <Grid size={{ xs: 12, sm: 4}}>
-                      <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'warning.lighter' }}>
-                        <Groups sx={{ fontSize: 30, color: 'warning.main', mb: 1 }} />
-                        <Typography variant="h5" fontWeight="bold">
-                          {stats.totalTeams}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Team Attivi
-                        </Typography>
-                      </Paper>
+                      <MetricTile label="Team attivi" value={stats.totalTeams} icon={<Groups />} tone="warning" />
                     </Grid>
 
                     <Grid size={{ xs: 12, sm: 4}}>
-                      <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'info.lighter' }}>
-                        <SportsMotorsports sx={{ fontSize: 30, color: 'info.main', mb: 1 }} />
-                        <Typography variant="h5" fontWeight="bold">
-                          {stats.totalLeagues}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Leghe Attive
-                        </Typography>
-                      </Paper>
+                      <MetricTile label="Leghe attive" value={stats.totalLeagues} icon={<SportsMotorsports />} tone="info" />
                     </Grid>
 
                     <Grid size={{ xs: 12, sm: 4}}>
-                      <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'error.lighter' }}>
-                        <Timeline sx={{ fontSize: 30, color: 'error.main', mb: 1 }} />
-                        <Typography variant="h5" fontWeight="bold">
-                          {stats.gamesPlayed}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Gare Giocate
-                        </Typography>
-                      </Paper>
+                      <MetricTile label="Gare giocate" value={stats.gamesPlayed} icon={<Timeline />} tone="error" />
                     </Grid>
 
                     <Grid size={{ xs: 12, sm: 4}}>
-                      <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'secondary.lighter' }}>
-                        <TrendingUp sx={{ fontSize: 30, color: 'secondary.main', mb: 1 }} />
-                        <Typography variant="h5" fontWeight="bold">
-                          {stats.winRate}%
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Win Rate
-                        </Typography>
-                      </Paper>
+                      <MetricTile label="Win rate" value={`${stats.winRate}%`} icon={<TrendingUp />} tone="secondary" />
                     </Grid>
                   </Grid>
 
@@ -649,16 +613,6 @@ export default function ProfilePage() {
                 >
                   Cambia Password
                 </Button>
-                
-                <Button
-                  variant="outlined"
-                  startIcon={<Security />}
-                  onClick={() => notify('Funzione in sviluppo', 'info')}
-                  fullWidth
-                >
-                  Verifica in Due Passaggi
-                </Button>
-                
                 <Button
                   variant="outlined"
                   startIcon={<Logout />}
@@ -666,18 +620,6 @@ export default function ProfilePage() {
                   fullWidth
                 >
                   Disconnetti
-                </Button>
-                
-                <Divider />
-                
-                <Button
-                  variant="outlined"
-                  color="error"
-                  startIcon={<Delete />}
-                  onClick={() => setShowDeleteDialog(true)}
-                  fullWidth
-                >
-                  Elimina Account
                 </Button>
               </Stack>
             </CardContent>
@@ -777,51 +719,6 @@ export default function ProfilePage() {
             }
           >
             {changePasswordMutation.isPending ? 'Aggiornamento...' : 'Aggiorna Password'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Dialog Elimina Account */}
-      <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          <Box display="flex" alignItems="center" gap={1} color="error.main">
-            <Delete />
-            Elimina Account
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <Alert severity="error" sx={{ mb: 2 }}>
-            Attenzione! Questa azione è irreversibile.
-          </Alert>
-          <Typography variant="body2">
-            Eliminando il tuo account:
-          </Typography>
-          <List dense>
-            <ListItem>
-              <ListItemText primary="• Perderai tutti i tuoi team e le statistiche" />
-            </ListItem>
-            <ListItem>
-              <ListItemText primary="• Sarai rimosso da tutte le leghe" />
-            </ListItem>
-            <ListItem>
-              <ListItemText primary="• Non potrai recuperare i tuoi dati" />
-            </ListItem>
-          </List>
-          <Typography variant="body2" sx={{ mt: 2 }}>
-            Sei sicuro di voler procedere?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowDeleteDialog(false)}>
-            Annulla
-          </Button>
-          <Button 
-            variant="contained"
-            color="error"
-            onClick={handleDeleteAccount}
-            disabled={deleteAccountMutation.isPending}
-          >
-            {deleteAccountMutation.isPending ? 'Eliminazione...' : 'Elimina Account'}
           </Button>
         </DialogActions>
       </Dialog>

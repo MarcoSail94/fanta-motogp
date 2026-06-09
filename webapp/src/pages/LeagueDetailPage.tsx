@@ -941,9 +941,9 @@ export default function LeagueDetailPage() {
                     <Button
                       variant="outlined"
                       startIcon={<NotificationsActive />}
-                      onClick={() => notify('Funzione in sviluppo', 'info')}
                       fullWidth
                       size={isMobile ? "small" : "medium"}
+                      disabled
                     >
                       Invia Notifica
                     </Button>
@@ -956,11 +956,7 @@ export default function LeagueDetailPage() {
                       startIcon={<Lock />}
                       fullWidth
                       size={isMobile ? "small" : "medium"}
-                      onClick={() => {
-                        if (confirm('Sei sicuro di voler chiudere le iscrizioni?')) {
-                          notify('Funzione in sviluppo', 'info');
-                        }
-                      }}
+                      disabled
                     >
                       Chiudi Iscrizioni
                     </Button>
