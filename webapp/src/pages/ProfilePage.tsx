@@ -230,7 +230,7 @@ export default function ProfilePage() {
           <MetricTile label="Punti" value={stats.totalPoints} helper="totali" icon={<EmojiEvents />} tone="warning" />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <MetricTile label="Miglior piazza" value={stats.bestPosition ? `#${stats.bestPosition}` : '-'} helper="classifica" icon={<WorkspacePremium />} tone="success" />
+          <MetricTile label="Miglior piazzamento" value={stats.bestPosition ? `#${stats.bestPosition}` : '-'} helper="classifica" icon={<WorkspacePremium />} tone="success" />
         </Grid>
       </Grid>
 

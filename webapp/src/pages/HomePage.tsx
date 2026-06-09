@@ -312,7 +312,7 @@ export default function HomePage() {
           </Grid>
           <Grid size={{ xs: 6, md: 3 }}>
             <MetricTile
-              label="Miglior piazza"
+              label="Miglior piazzamento"
               value={bestLeaguePosition ? `#${bestLeaguePosition}` : '-'}
               helper={bestLeaguePosition ? 'posizione lega' : 'nessuna classifica'}
               icon={<EmojiEvents />}
