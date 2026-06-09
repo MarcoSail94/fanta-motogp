@@ -23,7 +23,7 @@ import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { EmptyState } from '../components/ui/EmptyState';
 import { PageHeader } from '../components/ui/PageHeader';
-import { getLineupDeadlineDate } from '../utils/raceDates';
+import { getGpDate, getLineupDeadlineDate } from '../utils/raceDates';
 
 interface Team {
   id: string;
@@ -116,7 +116,7 @@ export default function TeamsPage() {
                   Prossima Gara: {nextRace.name}
                 </Typography>
                 <Typography variant="body2">
-                  {format(new Date(nextRace.gpDate), 'EEEE d MMMM yyyy', { locale: it })}
+                  {format(getGpDate(nextRace), 'EEEE d MMMM yyyy', { locale: it })}
                 </Typography>
               </Box>
             </Stack>

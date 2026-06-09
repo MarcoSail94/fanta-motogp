@@ -96,7 +96,7 @@ export default function LeagueDetailPage() {
   });
 
   const allRaces = racesData?.races || [];
-  const nextRace = allRaces.find((r: any) => !isPast(new Date(r.gpDate)));
+  const nextRace = allRaces.find((r: any) => !isPast(getGpDate(r)));
   const myTeam = myTeamData?.team;
   const deadline = nextRace ? getLineupDeadlineDate(nextRace) : null;
 
@@ -139,7 +139,7 @@ export default function LeagueDetailPage() {
   // Seleziona automaticamente la gara più recente o la prossima
   useEffect(() => {
     if (racesData?.races && !selectedRaceId) {
-        const races = [...racesData.races].sort((a: any, b: any) => new Date(a.gpDate).getTime() - new Date(b.gpDate).getTime());
+        const races = [...racesData.races].sort((a: any, b: any) => getGpDate(a).getTime() - getGpDate(b).getTime());
         const now = new Date();
         
         // Trova l'indice della prossima gara
@@ -151,7 +151,7 @@ export default function LeagueDetailPage() {
             if (previousRaceIndex >= 0) {
                 const previousRace = races[previousRaceIndex];
                 // Se la gara precedente è finita negli ultimi 3 giorni, la seleziona
-                if (differenceInDays(now, new Date(previousRace.gpDate)) <= 3) {
+                if (differenceInDays(now, getGpDate(previousRace)) <= 3) {
                     setSelectedRaceId(previousRace.id);
                     return;
                 }
