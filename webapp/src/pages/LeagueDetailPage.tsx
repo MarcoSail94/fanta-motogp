@@ -36,7 +36,7 @@ import { LeagueTabPanel } from '../components/league/LeagueTabPanel';
 import { MobileStandingCard } from '../components/league/MobileStandingCard';
 import { MetricTile } from '../components/ui/MetricTile';
 import type { LeagueStanding } from '../components/league/MobileStandingCard';
-import { getLineupDeadlineDate } from '../utils/raceDates';
+import { getGpDate, getLineupDeadlineDate } from '../utils/raceDates';
 
 export default function LeagueDetailPage() {
   const { leagueId } = useParams<{ leagueId: string }>();
@@ -143,7 +143,7 @@ export default function LeagueDetailPage() {
         const now = new Date();
         
         // Trova l'indice della prossima gara
-        const nextRaceIndex = races.findIndex((race: any) => !isPast(new Date(race.gpDate)));
+        const nextRaceIndex = races.findIndex((race: any) => !isPast(getGpDate(race)));
 
         if (nextRaceIndex !== -1) {
             // Se c'è una gara imminente, controlla se quella precedente è appena finita
@@ -704,7 +704,7 @@ export default function LeagueDetailPage() {
             >
               {allRaces?.map((race: any) => (
                 <MenuItem key={race.id} value={race.id}>
-                  {race.name} - {format(new Date(race.gpDate), 'dd MMM', { locale: it })}
+                  {race.name} - {format(getGpDate(race), 'dd MMM', { locale: it })}
                 </MenuItem>
               ))}
             </Select>

@@ -48,7 +48,7 @@ import { differenceInCalendarDays, format, isAfter, isBefore } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { EmptyState } from '../components/ui/EmptyState';
 import { MetricTile } from '../components/ui/MetricTile';
-import { getSprintDate } from '../utils/raceDates';
+import { getGpDate, getSprintDate } from '../utils/raceDates';
 
 type Category = 'MOTOGP' | 'MOTO2' | 'MOTO3';
 type RaceSession = 'race' | 'sprint' | 'qualifying' | 'fp1' | 'fp2' | 'pr';
@@ -290,6 +290,7 @@ export default function RaceDetailPage() {
   }
 
   const race = raceData.race;
+  const gpDate = getGpDate(race);
   const sprintDate = getSprintDate(race);
   const hasSprint = !!sprintDate;
   const weekendStatus = getWeekendStatus(race);
@@ -350,7 +351,7 @@ export default function RaceDetailPage() {
             <Stack direction={{ xs: 'row', md: 'column' }} spacing={1} justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
               <Chip
                 icon={<CalendarToday />}
-                label={format(new Date(race.gpDate), 'dd MMMM yyyy', { locale: it })}
+                label={format(gpDate, 'dd MMMM yyyy', { locale: it })}
                 sx={{ bgcolor: 'rgba(255,255,255,0.14)', color: 'white' }}
               />
               {sprintDate && (
@@ -370,7 +371,7 @@ export default function RaceDetailPage() {
           <MetricTile label="Stagione" value={race.season} helper="campionato" icon={<Flag />} />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <MetricTile label="GP" value={format(new Date(race.gpDate), 'dd MMM', { locale: it })} helper="gara principale" icon={<SportsScore />} tone="secondary" />
+          <MetricTile label="GP" value={format(gpDate, 'dd MMM', { locale: it })} helper="gara principale" icon={<SportsScore />} tone="secondary" />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
           <MetricTile label="Sprint" value={sprintDate ? format(sprintDate, 'dd MMM', { locale: it }) : '-'} helper={hasSprint ? 'weekend sprint' : 'non prevista'} icon={<Speed />} tone={hasSprint ? 'warning' : 'info'} />
@@ -558,7 +559,7 @@ export default function RaceDetailPage() {
                 </ListItem>
                 <ListItem>
                   <ListItemAvatar><Avatar><CalendarToday /></Avatar></ListItemAvatar>
-                  <ListItemText primary="Data GP" secondary={format(new Date(race.gpDate), 'dd MMMM yyyy', { locale: it })} />
+                  <ListItemText primary="Data GP" secondary={format(gpDate, 'dd MMMM yyyy', { locale: it })} />
                 </ListItem>
               </List>
             </Grid>
@@ -580,7 +581,7 @@ export default function RaceDetailPage() {
                         {label}
                       </Avatar>
                     </ListItemAvatar>
-                    <ListItemText primary={text} secondary={label === 'GP' ? format(new Date(race.gpDate), 'dd MMM HH:mm', { locale: it }) : 'Programma ufficiale weekend'} />
+                    <ListItemText primary={text} secondary={label === 'GP' ? format(gpDate, 'dd MMM HH:mm', { locale: it }) : 'Programma ufficiale weekend'} />
                   </ListItem>
                 ))}
               </List>

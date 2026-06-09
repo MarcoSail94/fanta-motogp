@@ -1,4 +1,4 @@
-import { subDays } from 'date-fns';
+import { parseISO } from 'date-fns';
 
 interface RaceDateLike {
   gpDate: string;
@@ -7,9 +7,13 @@ interface RaceDateLike {
 
 export function getSprintDate(race: RaceDateLike) {
   if (!race.sprintDate) return null;
-  return subDays(new Date(race.gpDate), 1);
+  return parseISO(race.sprintDate);
+}
+
+export function getGpDate(race: RaceDateLike) {
+  return parseISO(race.gpDate);
 }
 
 export function getLineupDeadlineDate(race: RaceDateLike) {
-  return getSprintDate(race) || new Date(race.gpDate);
+  return getSprintDate(race) || getGpDate(race);
 }

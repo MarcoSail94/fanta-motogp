@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { format, differenceInDays, isBefore, isAfter } from 'date-fns';
 import { it } from 'date-fns/locale';
 import type { Race } from '../types';
-import { getSprintDate } from '../utils/raceDates';
+import { getGpDate, getSprintDate } from '../utils/raceDates';
 
 interface RaceEventCardProps {
   race: Race;
@@ -13,7 +13,7 @@ interface RaceEventCardProps {
 
 export function RaceEventCard({ race }: RaceEventCardProps) {
   const navigate = useNavigate();
-  const raceDate = new Date(race.gpDate);
+  const raceDate = getGpDate(race);
   const sprintDate = getSprintDate(race);
   const startDate = new Date(race.startDate);
   const endDate = new Date(race.endDate);
