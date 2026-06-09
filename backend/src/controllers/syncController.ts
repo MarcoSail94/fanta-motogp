@@ -13,13 +13,31 @@ const parseBooleanOption = (value: unknown, fallback: boolean) => {
   return fallback;
 };
 
+const parseGitHubRepository = (value?: string) => {
+  if (!value) return {};
+
+  const normalized = value
+    .trim()
+    .replace(/^https:\/\/github\.com\//, '')
+    .replace(/^git@github\.com:/, '')
+    .replace(/\.git$/, '')
+    .replace(/^\/+|\/+$/g, '');
+
+  const [owner, repo] = normalized.split('/');
+  return { owner, repo };
+};
+
+const normalizeWorkflowId = (value?: string) => {
+  const workflowId = value?.trim() || 'cron-jobs.yml';
+  return workflowId.split('/').filter(Boolean).pop() || 'cron-jobs.yml';
+};
+
 const getGitHubWorkflowConfig = () => {
   const token = process.env.GITHUB_ACTIONS_TOKEN || process.env.GITHUB_WORKFLOW_TOKEN || process.env.GITHUB_TOKEN;
-  const repository = process.env.GITHUB_REPOSITORY;
-  const [repositoryOwner, repositoryName] = repository?.split('/') || [];
-  const owner = process.env.GITHUB_OWNER || repositoryOwner;
-  const repo = process.env.GITHUB_REPO || process.env.GITHUB_REPOSITORY_NAME || repositoryName;
-  const workflowId = process.env.GITHUB_WORKFLOW_ID || 'cron-jobs.yml';
+  const repository = parseGitHubRepository(process.env.GITHUB_REPOSITORY);
+  const owner = process.env.GITHUB_OWNER || process.env.VERCEL_GIT_REPO_OWNER || repository.owner;
+  const repo = process.env.GITHUB_REPO || process.env.GITHUB_REPOSITORY_NAME || process.env.VERCEL_GIT_REPO_SLUG || repository.repo;
+  const workflowId = normalizeWorkflowId(process.env.GITHUB_WORKFLOW_ID);
   const ref = process.env.GITHUB_WORKFLOW_REF || process.env.VERCEL_GIT_COMMIT_REF || 'main';
 
   if (!token || !owner || !repo) {
@@ -265,6 +283,16 @@ export const dispatchRaceRefreshWorkflow = async (req: AuthRequest, res: Respons
       clear_existing_results: clearExistingResults ? 'true' : 'false',
     };
 
+    console.log('[GITHUB-DISPATCH] Avvio workflow dispatch', {
+      repository: `${config.owner}/${config.repo}`,
+      workflowId: config.workflowId,
+      ref: config.ref,
+      raceId: race.id,
+      raceName: race.name,
+      inputs,
+      requestedBy: req.userId,
+    });
+
     const syncLog = await prisma.syncLog.create({
       data: {
         type: 'RACE_RESULTS',
@@ -321,6 +349,16 @@ export const dispatchRaceRefreshWorkflow = async (req: AuthRequest, res: Respons
     const githubStatus = axios.isAxiosError(error) ? error.response?.status : undefined;
     const githubError = axios.isAxiosError(error) ? error.response?.data : undefined;
 
+    console.error('[GITHUB-DISPATCH] Errore workflow dispatch', {
+      repository: `${config.owner}/${config.repo}`,
+      workflowId: config.workflowId,
+      ref: config.ref,
+      raceId,
+      githubStatus,
+      githubError,
+      message: error.message,
+    });
+
     await prisma.syncLog.create({
       data: {
         type: 'RACE_RESULTS',
@@ -339,10 +377,14 @@ export const dispatchRaceRefreshWorkflow = async (req: AuthRequest, res: Respons
       },
     });
 
-    console.error('Errore dispatch GitHub Actions refresh race:', githubError || error);
     return res.status(500).json({
       error: 'Errore durante l\'avvio del workflow GitHub Actions',
-      details: githubStatus ? { githubStatus } : undefined,
+      details: {
+        githubStatus,
+        repository: `${config.owner}/${config.repo}`,
+        workflowId: config.workflowId,
+        ref: config.ref,
+      },
     });
   }
 };
