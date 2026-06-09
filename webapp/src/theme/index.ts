@@ -1,6 +1,18 @@
 // webapp/src/theme/index.ts
 import { createTheme, responsiveFontSizes } from '@mui/material/styles';
 
+const liquidGlass = {
+  backgroundImage: `
+    linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.035) 42%, rgba(230,0,35,0.07)),
+    radial-gradient(circle at 18% 0%, rgba(255,255,255,0.18), transparent 30%)
+  `,
+  backgroundColor: 'rgba(22, 22, 30, 0.72)',
+  backdropFilter: 'blur(22px) saturate(180%)',
+  WebkitBackdropFilter: 'blur(22px) saturate(180%)',
+  border: '1px solid rgba(255,255,255,0.14)',
+  boxShadow: '0 18px 44px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.10)',
+};
+
 const baseTheme = createTheme({
   palette: {
     mode: 'dark',
@@ -90,6 +102,18 @@ let theme = createTheme(baseTheme, {
         '.fade-in': {
           animation: 'fadeIn 0.6s ease-out',
         },
+        '.liquid-glass': liquidGlass,
+        '.liquid-glass-strong': {
+          ...liquidGlass,
+          backgroundColor: 'rgba(18, 18, 25, 0.82)',
+          borderColor: 'rgba(255,255,255,0.18)',
+          boxShadow: '0 24px 60px rgba(0,0,0,0.52), inset 0 1px 0 rgba(255,255,255,0.12)',
+        },
+        '.liquid-glass-nav': {
+          ...liquidGlass,
+          backgroundColor: 'rgba(18, 18, 25, 0.78)',
+          borderColor: 'rgba(255,255,255,0.16)',
+        },
         '@keyframes fadeIn': {
           from: { opacity: 0, transform: 'translateY(20px)' },
           to: { opacity: 1, transform: 'translateY(0)' },
@@ -122,6 +146,9 @@ let theme = createTheme(baseTheme, {
         root: {
           backgroundImage: 'none',
           backgroundColor: 'rgba(26, 26, 35, 0.9)',
+          '&.liquid-glass, &.liquid-glass-strong, &.liquid-glass-nav': {
+            backgroundImage: liquidGlass.backgroundImage,
+          },
         },
       },
     },
@@ -157,20 +184,101 @@ let theme = createTheme(baseTheme, {
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          backgroundColor: '#0f0f13',
-          borderRight: '1px solid rgba(255,255,255,0.08)',
+          ...liquidGlass,
+          backgroundColor: 'rgba(15, 15, 19, 0.76)',
+          borderLeft: 0,
+          borderTop: 0,
+          borderBottom: 0,
+          borderRight: '1px solid rgba(255,255,255,0.14)',
         }
       }
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          ...liquidGlass,
+          backgroundColor: 'rgba(15, 15, 19, 0.78)',
+          borderLeft: 0,
+          borderRight: 0,
+          borderTop: 0,
+        },
+      },
     },
     MuiBottomNavigation: {
       styleOverrides: {
         root: {
-          backgroundColor: 'rgba(26, 26, 35, 0.95)',
-          backdropFilter: 'blur(10px)',
-          borderTop: '1px solid rgba(255,255,255,0.08)',
+          ...liquidGlass,
+          backgroundColor: 'rgba(18, 18, 25, 0.82)',
         }
       }
-    }
+    },
+    MuiTabs: {
+      styleOverrides: {
+        root: {
+          minHeight: 58,
+          '& .MuiTabs-flexContainer': {
+            gap: 4,
+          },
+        },
+        indicator: {
+          height: 3,
+          borderRadius: 3,
+          background: 'linear-gradient(90deg, #E60023, #FF6B00)',
+          boxShadow: '0 0 18px rgba(230,0,35,0.65)',
+        },
+      },
+    },
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          minHeight: 58,
+          borderRadius: 12,
+          margin: '6px 4px',
+          color: '#A0A0A0',
+          transition: 'background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease',
+          '&.Mui-selected': {
+            color: '#FFFFFF',
+            backgroundColor: 'rgba(255,255,255,0.08)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)',
+          },
+        },
+      },
+    },
+    MuiDialog: {
+      styleOverrides: {
+        paper: {
+          ...liquidGlass,
+          backgroundColor: 'rgba(18, 18, 25, 0.9)',
+        },
+      },
+    },
+    MuiMenu: {
+      styleOverrides: {
+        paper: {
+          ...liquidGlass,
+          backgroundColor: 'rgba(18, 18, 25, 0.9)',
+        },
+      },
+    },
+    MuiPopover: {
+      styleOverrides: {
+        paper: {
+          ...liquidGlass,
+          backgroundColor: 'rgba(18, 18, 25, 0.9)',
+        },
+      },
+    },
+    MuiFab: {
+      styleOverrides: {
+        root: {
+          ...liquidGlass,
+          color: '#FFFFFF',
+          '&:hover': {
+            boxShadow: '0 22px 54px rgba(230,0,35,0.32), inset 0 1px 0 rgba(255,255,255,0.18)',
+          },
+        },
+      },
+    },
   },
 });
 

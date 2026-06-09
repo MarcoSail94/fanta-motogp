@@ -153,8 +153,16 @@ function FilterButton({
         py: 0.75,
         borderRadius: 1.5,
         border: '1px solid',
-        borderColor: selected ? accent : 'rgba(255,255,255,0.14)',
-        bgcolor: selected ? `${accent}24` : 'rgba(255,255,255,0.035)',
+        borderColor: selected ? `${accent}CC` : 'rgba(255,255,255,0.15)',
+        backgroundImage: selected
+          ? `linear-gradient(135deg, ${accent}30, rgba(255,255,255,0.08)), radial-gradient(circle at 18% 0%, rgba(255,255,255,0.22), transparent 36%)`
+          : 'linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.035)), radial-gradient(circle at 18% 0%, rgba(255,255,255,0.14), transparent 36%)',
+        bgcolor: selected ? `${accent}18` : 'rgba(18,18,25,0.58)',
+        backdropFilter: 'blur(18px) saturate(170%)',
+        WebkitBackdropFilter: 'blur(18px) saturate(170%)',
+        boxShadow: selected
+          ? `0 12px 28px ${accent}22, inset 0 1px 0 rgba(255,255,255,0.16)`
+          : 'inset 0 1px 0 rgba(255,255,255,0.08)',
         color: selected ? 'text.primary' : 'text.secondary',
         display: 'flex',
         alignItems: 'center',
@@ -163,10 +171,11 @@ function FilterButton({
         font: 'inherit',
         fontWeight: selected ? 900 : 700,
         cursor: 'pointer',
-        transition: 'border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease',
+        transition: 'border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease',
         '&:hover': {
-          borderColor: accent,
+          borderColor: `${accent}CC`,
           bgcolor: `${accent}18`,
+          boxShadow: `0 10px 24px ${accent}1F, inset 0 1px 0 rgba(255,255,255,0.14)`,
         },
         '&:active': {
           transform: 'scale(0.98)',

@@ -528,7 +528,7 @@ export default function LeagueDetailPage() {
       )}
 
       {/* Tabs - Responsive */}
-      <Paper sx={{ mb: 2 }}>
+      <Paper className="liquid-glass-nav" sx={{ mb: 2, borderRadius: 2, overflow: 'hidden' }}>
         <Tabs
           value={selectedTab}
           onChange={(_, v) => setSelectedTab(v)}

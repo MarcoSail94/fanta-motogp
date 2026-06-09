@@ -211,7 +211,7 @@ export default function EditTeamPage() {
   }
 
   return (
-    <Box className="fade-in" sx={{ pb: { xs: 12, md: 0 } }}>
+    <Box className="fade-in" sx={{ pb: { xs: 20, md: 0 } }}>
       <PageHeader
         eyebrow="Garage"
         title={`Modifica ${team.name}`}

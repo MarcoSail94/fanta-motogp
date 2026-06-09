@@ -94,8 +94,15 @@ function MainLayout() {
                 duration: theme.transitions.duration.enteringScreen,
               }),
               overflowX: 'hidden',
-              backgroundColor: theme.palette.background.paper,
-              borderRight: '1px solid rgba(255,255,255,0.08)',
+              backgroundImage: `
+                linear-gradient(135deg, rgba(255,255,255,0.11), rgba(255,255,255,0.03) 42%, rgba(230,0,35,0.08)),
+                radial-gradient(circle at 20% 0%, rgba(255,255,255,0.16), transparent 28%)
+              `,
+              backgroundColor: 'rgba(15,15,19,0.76)',
+              backdropFilter: 'blur(24px) saturate(185%)',
+              WebkitBackdropFilter: 'blur(24px) saturate(185%)',
+              borderRight: '1px solid rgba(255,255,255,0.14)',
+              boxShadow: '18px 0 54px rgba(0,0,0,0.36), inset -1px 0 0 rgba(255,255,255,0.06)',
             },
           }}
         >
@@ -117,12 +124,17 @@ function MainLayout() {
                   sx={{
                     minHeight: 48,
                     justifyContent: drawerOpen ? 'initial' : 'center',
-                    px: 2.5,
-                    mb: 0.5,
-                    bgcolor: activePath === item.path ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
-                    borderLeft: activePath === item.path ? `4px solid ${theme.palette.primary.main}` : '4px solid transparent',
+                    mx: 1,
+                    px: drawerOpen ? 1.5 : 1,
+                    mb: 0.75,
+                    borderRadius: 2,
+                    bgcolor: activePath === item.path ? alpha(theme.palette.primary.main, 0.18) : 'transparent',
+                    border: '1px solid',
+                    borderColor: activePath === item.path ? alpha(theme.palette.primary.main, 0.48) : 'transparent',
+                    boxShadow: activePath === item.path ? 'inset 0 1px 0 rgba(255,255,255,0.14), 0 10px 24px rgba(230,0,35,0.14)' : 'none',
                     '&:hover': {
-                       bgcolor: alpha(theme.palette.text.primary, 0.05),
+                       bgcolor: activePath === item.path ? alpha(theme.palette.primary.main, 0.22) : alpha(theme.palette.text.primary, 0.07),
+                       borderColor: alpha(theme.palette.text.primary, 0.12),
                     }
                   }}
                   onClick={() => navigate(item.path)}
@@ -164,10 +176,22 @@ function MainLayout() {
       )}
 
       {/* Main Content */}
-      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 4 }, pb: { xs: 10, md: 4 }, width: '100%', overflowX: 'hidden' }}>
+      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 4 }, pb: { xs: 12, md: 4 }, width: '100%', overflowX: 'hidden' }}>
         {/* Mobile Header */}
         {isMobile && (
-          <AppBar position="sticky" elevation={0} sx={{ bgcolor: 'background.default', mb: 2, top: 0, zIndex: 1100 }}>
+          <AppBar
+            position="sticky"
+            elevation={0}
+            className="liquid-glass-nav"
+            sx={{
+              mb: 2,
+              top: 0,
+              zIndex: 1100,
+              borderRadius: 2,
+              borderTop: '1px solid rgba(255,255,255,0.12)',
+              overflow: 'hidden',
+            }}
+          >
             <Toolbar>
                <Typography variant="h6" color="primary" sx={{ flexGrow: 1, fontWeight: 800, fontStyle: 'italic' }}>
                  Fanta MotoGP
@@ -185,22 +209,41 @@ function MainLayout() {
 
       {/* Mobile Bottom Navigation */}
       {isMobile && (
-        <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1100 }} elevation={3}>
+        <Paper
+          className="liquid-glass-nav"
+          sx={{
+            position: 'fixed',
+            bottom: 8,
+            left: 8,
+            right: 8,
+            zIndex: 1100,
+            borderRadius: 3,
+            overflow: 'hidden',
+          }}
+          elevation={8}
+        >
           <BottomNavigation
             showLabels
             value={activePath}
             onChange={(_, newValue) => navigate(newValue)}
             sx={{ 
-              bgcolor: 'background.paper', 
               height: 72,
-              borderTop: '1px solid rgba(255,255,255,0.1)',
+              bgcolor: 'transparent',
+              borderTop: 0,
+              px: 0.5,
               '& .MuiBottomNavigationAction-root': {
                 minWidth: 0,
                 px: 0.5,
                 color: 'text.secondary',
+                borderRadius: 2,
+                my: 0.75,
+                mx: 0.15,
+                transition: 'background-color 0.2s ease, color 0.2s ease, transform 0.2s ease',
               },
               '& .Mui-selected': {
                 color: 'primary.main',
+                backgroundColor: alpha(theme.palette.primary.main, 0.14),
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)',
               },
               '& .MuiBottomNavigationAction-label': {
                 fontSize: '0.68rem',

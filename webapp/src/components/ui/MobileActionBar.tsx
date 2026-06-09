@@ -24,17 +24,17 @@ export function MobileActionBar({
 }: MobileActionBarProps) {
   return (
     <Paper
+      className="liquid-glass-strong"
       sx={{
         display: { xs: 'block', md: 'none' },
         position: 'fixed',
-        left: 0,
-        right: 0,
-        bottom: 72,
+        left: 8,
+        right: 8,
+        bottom: 88,
         zIndex: 1099,
         px: 2,
         py: 1.5,
-        borderTop: '1px solid rgba(255,255,255,0.12)',
-        borderRadius: 0,
+        borderRadius: 3,
       }}
       elevation={8}
     >

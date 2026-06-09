@@ -215,7 +215,7 @@ export default function CreateTeamPage() {
   }
   
   return (
-    <Box sx={{ pb: { xs: 12, md: 0 } }}>
+    <Box sx={{ pb: { xs: 20, md: 0 } }}>
       <PageHeader
         eyebrow="Mercato"
         title="Crea il tuo team"

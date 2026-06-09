@@ -193,7 +193,7 @@ export default function LineupPage() {
 
   
   return (
-    <Box className="fade-in" sx={{ pb: { xs: 12, md: 0 } }}>
+    <Box className="fade-in" sx={{ pb: { xs: 20, md: 0 } }}>
       <PageHeader
         eyebrow="Lineup"
         title="Schiera formazione"
@@ -201,12 +201,9 @@ export default function LineupPage() {
       />
 
       {/* Header Sticky */}
-      <Paper sx={{ 
+      <Paper className="liquid-glass-nav" sx={{
         p: 2, mb: 3, position: 'sticky', top: 10, zIndex: 100, 
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        border: '1px solid rgba(255,255,255,0.1)',
-        backdropFilter: 'blur(10px)',
-        backgroundColor: 'rgba(26, 26, 35, 0.9)',
         borderRadius: 3
       }} elevation={4}>
         <Box>

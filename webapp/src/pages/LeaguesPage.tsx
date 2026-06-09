@@ -418,14 +418,18 @@ export default function LeaguesPage() {
         />
       </Box>
 
-      <Box sx={{ 
-        bgcolor: 'background.paper',
-        borderBottom: 1,
-        borderColor: 'divider',
-        position: 'sticky',
-        top: isMobile ? 64 : 0,
-        zIndex: 100
-      }}>
+      <Box
+        className="liquid-glass-nav"
+        sx={{
+          bgcolor: 'transparent',
+          position: 'sticky',
+          top: isMobile ? 64 : 0,
+          zIndex: 100,
+          mx: isMobile ? 1.5 : 3,
+          borderRadius: 2,
+          overflow: 'hidden',
+        }}
+      >
         <Tabs 
           value={tabValue} 
           onChange={(_, newValue) => setTabValue(newValue)}
