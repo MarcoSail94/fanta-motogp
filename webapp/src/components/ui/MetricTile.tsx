@@ -12,27 +12,29 @@ interface MetricTileProps {
 export function MetricTile({ label, value, helper, icon, tone = 'primary' }: MetricTileProps) {
   return (
     <Paper
+      className="liquid-glass"
       sx={{
-        p: 2,
+        p: { xs: 1.25, sm: 1.5 },
         height: '100%',
+        minHeight: { xs: 82, sm: 94 },
+        borderRadius: 2,
         border: '1px solid',
         borderColor: `${tone}.main`,
-        background:
-          'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015))',
+        display: 'flex',
+        alignItems: 'center',
       }}
     >
-      <Stack direction="row" spacing={1.5} alignItems="center">
+      <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0, width: '100%' }}>
         {icon && (
           <Box
             sx={{
-              width: 38,
-              height: 38,
-              borderRadius: 1.5,
+              width: { xs: 34, sm: 38 },
+              height: { xs: 34, sm: 38 },
+              borderRadius: 2,
               display: 'grid',
               placeItems: 'center',
               color: `${tone}.main`,
-              bgcolor: `${tone}.main`,
-              backgroundColor: (theme) => `${theme.palette[tone].main}1F`,
+              backgroundColor: (theme) => `${theme.palette[tone].main}24`,
               flexShrink: 0,
             }}
           >
@@ -40,14 +42,23 @@ export function MetricTile({ label, value, helper, icon, tone = 'primary' }: Met
           </Box>
         )}
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800 }}>
             {label}
           </Typography>
-          <Typography variant="h5" sx={{ fontWeight: 900, lineHeight: 1.1 }}>
+          <Typography variant="h6" sx={{ fontWeight: 900, lineHeight: 1.08 }}>
             {value}
           </Typography>
           {helper && (
-            <Typography variant="caption" color="text.secondary">
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{
+                display: '-webkit-box',
+                WebkitLineClamp: 1,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }}
+            >
               {helper}
             </Typography>
           )}

@@ -34,76 +34,9 @@ import { LeagueSeasonReset } from '../components/LeagueSeasonReset';
 import { LeagueStatsTab } from '../components/league/LeagueStatsTab';
 import { LeagueTabPanel } from '../components/league/LeagueTabPanel';
 import { MobileStandingCard } from '../components/league/MobileStandingCard';
+import { MetricTile } from '../components/ui/MetricTile';
 import type { LeagueStanding } from '../components/league/MobileStandingCard';
 import { getGpDate, getLineupDeadlineDate } from '../utils/raceDates';
-
-function LeagueStat({
-  label,
-  value,
-  helper,
-  icon,
-  tone = 'primary',
-}: {
-  label: string;
-  value: React.ReactNode;
-  helper?: React.ReactNode;
-  icon: React.ReactNode;
-  tone?: 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info';
-}) {
-  return (
-    <Paper
-      className="liquid-glass"
-      sx={{
-        p: { xs: 1.25, sm: 1.5 },
-        height: '100%',
-        minHeight: { xs: 82, sm: 94 },
-        borderRadius: 2,
-        border: '1px solid',
-        borderColor: `${tone}.main`,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1.25,
-      }}
-    >
-      <Box
-        sx={{
-          width: { xs: 34, sm: 38 },
-          height: { xs: 34, sm: 38 },
-          borderRadius: 2,
-          display: 'grid',
-          placeItems: 'center',
-          color: `${tone}.main`,
-          backgroundColor: (theme) => `${theme.palette[tone].main}24`,
-          flexShrink: 0,
-        }}
-      >
-        {icon}
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800 }}>
-          {label}
-        </Typography>
-        <Typography variant="h6" sx={{ fontWeight: 900, lineHeight: 1.08 }}>
-          {value}
-        </Typography>
-        {helper && (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{
-              display: '-webkit-box',
-              WebkitLineClamp: 1,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-            }}
-          >
-            {helper}
-          </Typography>
-        )}
-      </Box>
-    </Paper>
-  );
-}
 
 function LeagueTabLabel({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
@@ -443,7 +376,7 @@ export default function LeagueDetailPage() {
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid size={{ xs: 6, md: 3 }}>
-          <LeagueStat
+          <MetricTile
             label="Posizione"
             value={userHasTeam && myPosition > 0 ? `#${myPosition}` : '-'}
             helper={userHasTeam ? `${myTeam.totalPoints || 0} punti` : 'crea un team'}
@@ -452,7 +385,7 @@ export default function LeagueDetailPage() {
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <LeagueStat
+          <MetricTile
             label="Team"
             value={`${teamCount}/${league.maxTeams}`}
             helper={league.teamsLocked ? 'mercato chiuso' : 'posti lega'}
@@ -461,7 +394,7 @@ export default function LeagueDetailPage() {
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <LeagueStat
+          <MetricTile
             label="Budget"
             value={league.budget}
             helper="crediti iniziali"
@@ -470,7 +403,7 @@ export default function LeagueDetailPage() {
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <LeagueStat
+          <MetricTile
             label="Deadline"
             value={deadlineValue}
             helper={nextRace ? 'prossima gara' : 'nessuna gara'}
