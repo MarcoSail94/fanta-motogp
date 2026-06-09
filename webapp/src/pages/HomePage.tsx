@@ -200,7 +200,7 @@ export default function HomePage() {
                   size="small"
                 />
                 {teamNeedingLineup && nextRace && !isLocked && (
-                  <Chip label="Lineup da completare" color="warning" size="small" />
+                  <Chip label="Lineup mancante" color="warning" size="small" />
                 )}
                 {isLocked && <Chip label="Formazioni bloccate" color="error" size="small" />}
               </Stack>

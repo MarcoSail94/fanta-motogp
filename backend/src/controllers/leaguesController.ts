@@ -27,6 +27,10 @@ export const getMyLeagues = async (req: AuthRequest, res: Response) => {
         _count: {
           select: { teams: true }
         },
+        members: {
+          where: { userId },
+          select: { role: true }
+        },
         teams: {
           include: {
             scores: true
@@ -45,6 +49,7 @@ export const getMyLeagues = async (req: AuthRequest, res: Response) => {
         .sort((a, b) => a.totalPoints - b.totalPoints);
       const userTeam = standings.find(team => team.userId === userId);
       const userPosition = userTeam ? standings.findIndex(team => team.teamId === userTeam.teamId) + 1 : null;
+      const userRole = league.members[0]?.role || 'MEMBER';
 
       return {
         id: league.id,
@@ -55,7 +60,9 @@ export const getMyLeagues = async (req: AuthRequest, res: Response) => {
         budget: league.budget,
         currentTeams: league._count.teams,
         userPoints: userTeam?.totalPoints || 0,
-        userPosition
+        userPosition,
+        role: userRole,
+        isAdmin: userRole === 'ADMIN'
       };
     });
 

@@ -1,19 +1,25 @@
 // webapp/src/pages/RaceDetailPage.tsx
 import { useMemo, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { getQualifyingResults, getRaceById, getRaceResults } from '../services/api';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getAllRaces, getMyLeagues, getQualifyingResults, getRaceById, getRaceResults, triggerRaceDataRefresh } from '../services/api';
 import { queryKeys } from '../services/queryKeys';
 import {
   Alert,
   Avatar,
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
   CircularProgress,
   Collapse,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
+  FormControlLabel,
   Grid,
   List,
   ListItem,
@@ -21,6 +27,7 @@ import {
   ListItemText,
   Paper,
   Stack,
+  Switch,
   Tab,
   Table,
   TableBody,
@@ -44,12 +51,15 @@ import {
   WorkspacePremium,
   KeyboardArrowDown,
   KeyboardArrowUp,
+  Sync,
 } from '@mui/icons-material';
 import { differenceInCalendarDays, format, isAfter, isBefore } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { EmptyState } from '../components/ui/EmptyState';
 import { MetricTile } from '../components/ui/MetricTile';
 import { getGpDate, getSprintDate } from '../utils/raceDates';
+import { useAuth } from '../contexts/AuthContext';
+import { useNotification } from '../contexts/NotificationContext';
 
 type Category = 'MOTOGP' | 'MOTO2' | 'MOTO3';
 type RaceSession = 'race' | 'sprint' | 'qualifying' | 'fp1' | 'fp2' | 'pr';
@@ -437,6 +447,9 @@ function MobileResultCard({
 
 export default function RaceDetailPage() {
   const { raceId } = useParams<{ raceId: string }>();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { notify } = useNotification();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
@@ -445,11 +458,29 @@ export default function RaceDetailPage() {
   const [selectedCategory, setSelectedCategory] = useState<Category>('MOTOGP');
   const [selectedSession, setSelectedSession] = useState<RaceSession>('race');
   const [expandedResultKey, setExpandedResultKey] = useState<string | null>(null);
+  const [refreshDialogOpen, setRefreshDialogOpen] = useState(false);
+  const [recalculateScores, setRecalculateScores] = useState(true);
 
   const { data: raceData, isLoading: loadingRace } = useQuery({
     queryKey: queryKeys.races.detail(raceId),
     queryFn: () => getRaceById(raceId!),
     enabled: !!raceId,
+  });
+
+  const { data: myLeaguesData } = useQuery({
+    queryKey: queryKeys.leagues.mine,
+    queryFn: getMyLeagues,
+    enabled: !!user,
+  });
+
+  const isLeagueAdmin = useMemo(() => (
+    myLeaguesData?.leagues?.some((league: any) => league.isAdmin || league.role === 'ADMIN') || false
+  ), [myLeaguesData]);
+
+  const { data: seasonRacesData } = useQuery({
+    queryKey: queryKeys.races.all(raceData?.race?.season),
+    queryFn: () => getAllRaces(raceData!.race.season),
+    enabled: isLeagueAdmin && !!raceData?.race?.season,
   });
 
   const { data: raceResultsData, isLoading: loadingRaceResults } = useQuery({
@@ -490,6 +521,33 @@ export default function RaceDetailPage() {
     ? loadingPractice
     : loadingRaceResults;
 
+  const latestCompletedRaceId = useMemo(() => {
+    const now = new Date();
+    const completedRaces = seasonRacesData?.races
+      ?.filter((race: any) => getGpDate(race) <= now)
+      .sort((a: any, b: any) => getGpDate(b).getTime() - getGpDate(a).getTime());
+
+    return completedRaces?.[0]?.id || null;
+  }, [seasonRacesData]);
+
+  const refreshMutation = useMutation({
+    mutationFn: () => triggerRaceDataRefresh(raceId!, {
+      recalculateScores,
+      clearExistingResults: true,
+    }),
+    onSuccess: (data) => {
+      notify(data?.message || 'Refresh dati avviato', 'success');
+      setRefreshDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: queryKeys.races.detail(raceId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.races.results(raceId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.races.qualifying(raceId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.races.practiceRoot });
+    },
+    onError: (error: any) => {
+      notify(error.response?.data?.error || 'Errore durante l\'avvio del refresh dati', 'error');
+    },
+  });
+
   if (loadingRace) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
@@ -507,6 +565,7 @@ export default function RaceDetailPage() {
   const sprintDate = getSprintDate(race);
   const hasSprint = !!sprintDate;
   const weekendStatus = getWeekendStatus(race);
+  const canRefreshRaceData = Boolean(isLeagueAdmin && latestCompletedRaceId === race.id);
 
   return (
     <Box className="fade-in" sx={{ pb: 2 }}>
@@ -561,7 +620,14 @@ export default function RaceDetailPage() {
           </Grid>
 
           <Grid size={{ xs: 12, md: 4 }}>
-            <Stack direction={{ xs: 'row', md: 'column' }} spacing={1} justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
+            <Stack
+              direction={{ xs: 'row', md: 'column' }}
+              spacing={1}
+              flexWrap="wrap"
+              useFlexGap
+              justifyContent={{ xs: 'flex-start', md: 'flex-end' }}
+              alignItems={{ xs: 'flex-start', md: 'flex-end' }}
+            >
               <Chip
                 icon={<CalendarToday />}
                 label={format(gpDate, 'dd MMMM yyyy', { locale: it })}
@@ -573,6 +639,18 @@ export default function RaceDetailPage() {
                   label={`Sprint ${format(sprintDate, 'dd MMM', { locale: it })}`}
                   sx={{ bgcolor: 'rgba(255,255,255,0.14)', color: 'white' }}
                 />
+              )}
+              {canRefreshRaceData && (
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  size="small"
+                  startIcon={<Sync />}
+                  onClick={() => setRefreshDialogOpen(true)}
+                  sx={{ flexShrink: 0 }}
+                >
+                  Refresh dati
+                </Button>
               )}
             </Stack>
           </Grid>
@@ -822,6 +900,45 @@ export default function RaceDetailPage() {
           </Grid>
         </TabPanel>
       </Card>
+
+      <Dialog
+        open={refreshDialogOpen}
+        onClose={() => !refreshMutation.isPending && setRefreshDialogOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Aggiorna dati gara</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Alert severity="warning" variant="outlined">
+              Verranno cancellati i risultati esistenti della gara e rilanciata la matrix di sync su GitHub Actions.
+            </Alert>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={recalculateScores}
+                  onChange={(event) => setRecalculateScores(event.target.checked)}
+                />
+              }
+              label="Ricalcola giornata al termine"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRefreshDialogOpen(false)} disabled={refreshMutation.isPending}>
+            Annulla
+          </Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            startIcon={<Sync />}
+            onClick={() => refreshMutation.mutate()}
+            disabled={refreshMutation.isPending}
+          >
+            {refreshMutation.isPending ? 'Avvio...' : 'Avvia refresh'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
