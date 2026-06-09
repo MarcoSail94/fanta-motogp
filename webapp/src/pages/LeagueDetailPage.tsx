@@ -7,7 +7,7 @@ import {
   TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Alert,
   CircularProgress, Tabs, Tab, Dialog, DialogTitle, DialogContent,
   DialogActions, Switch, FormControlLabel, Select, MenuItem, FormControl,
-  InputLabel, Stack, Divider, List, ListItem, ListItemText, ListItemAvatar,
+  InputLabel, Stack, Divider,
   IconButton, Tooltip, useTheme, useMediaQuery
 } from '@mui/material';
 import {
@@ -123,6 +123,24 @@ function LeagueTabLabel({ icon, label }: { icon: React.ReactNode; label: string 
       </Typography>
     </Stack>
   );
+}
+
+const lineupCategoryColors: Record<string, string> = {
+  MOTOGP: '#E60023',
+  MOTO2: '#FF6B00',
+  MOTO3: '#2979FF',
+};
+
+const podiumColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
+
+function toScoreValue(value: unknown) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : Number.POSITIVE_INFINITY;
+}
+
+function formatPositionValue(value: unknown) {
+  if (value === null || value === undefined || value === '' || value === 'N/A') return '-';
+  return typeof value === 'number' ? `${value}°` : String(value);
 }
 
 export default function LeagueDetailPage() {
@@ -251,6 +269,10 @@ export default function LeagueDetailPage() {
 
   const league = leagueData?.league;
   const standings: LeagueStanding[] = league?.standings || [];
+  const displayedLineups = useMemo(() => {
+    const raceLineups = lineupsData?.lineups || [];
+    return [...raceLineups].sort((a: any, b: any) => toScoreValue(a.totalPoints) - toScoreValue(b.totalPoints));
+  }, [lineupsData]);
   const isAdmin = league?.isAdmin;
   const userHasTeam = !!myTeam;
   
@@ -797,7 +819,7 @@ export default function LeagueDetailPage() {
       {/* Tab: Lineup Gara - Responsive */}
       <LeagueTabPanel value={selectedTab} index={1}>
         {/* Selettore Gara */}
-        <Box mb={3}>
+        <Paper className="liquid-glass-nav" sx={{ p: 1.5, mb: 2.5 }}>
           <FormControl fullWidth size={isMobile ? "small" : "medium"}>
             <InputLabel>Seleziona Gara</InputLabel>
             <Select
@@ -812,126 +834,215 @@ export default function LeagueDetailPage() {
               ))}
             </Select>
           </FormControl>
-        </Box>
+        </Paper>
+
+        {lineupsData?.message && (
+          <Alert severity="info" variant="outlined" sx={{ mb: 2 }}>
+            {lineupsData.message}
+          </Alert>
+        )}
 
         {loadingLineups ? (
           <Box display="flex" justifyContent="center" p={4}>
             <CircularProgress />
           </Box>
+        ) : displayedLineups.length === 0 ? (
+          <Alert severity="info" variant="outlined">
+            Nessuna lineup disponibile per questa gara.
+          </Alert>
         ) : (
           <Grid container spacing={isMobile ? 2 : 3}>
-            {lineupsData?.lineups?.map((teamLineup: any) => (
-              <Grid key={teamLineup.teamId} size={{ xs: 12, md: 6}}>
-                <Card>
-                  <CardContent sx={{ p: isMobile ? 2 : 3 }}>
-                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                      <Box>
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                          <Typography
-                            variant={isMobile ? "subtitle1" : "h6"}
-                            fontWeight="bold"
+            {displayedLineups.map((teamLineup: any, lineupIndex: number) => {
+              const lineupRows = teamLineup.lineup || [];
+              const hasTeamScore = toScoreValue(teamLineup.totalPoints) !== Number.POSITIVE_INFINITY;
+              const rankColor = hasTeamScore && lineupIndex < 3 ? podiumColors[lineupIndex] : undefined;
+
+              return (
+                <Grid key={teamLineup.teamId} size={{ xs: 12, md: 6 }}>
+                  <Card
+                    sx={{
+                      height: '100%',
+                      borderColor: rankColor || 'rgba(255,255,255,0.08)',
+                      backgroundImage: rankColor
+                        ? `linear-gradient(135deg, ${rankColor}1F, rgba(26,26,35,0.82) 48%, rgba(255,255,255,0.035))`
+                        : undefined,
+                    }}
+                  >
+                    <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
+                      <Stack direction="row" justifyContent="space-between" spacing={1.5} alignItems="flex-start" sx={{ mb: 1.75 }}>
+                        <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
+                          <Box
+                            sx={{
+                              width: { xs: 42, sm: 48 },
+                              height: { xs: 42, sm: 48 },
+                              borderRadius: 2,
+                              display: 'grid',
+                              placeItems: 'center',
+                              flexShrink: 0,
+                              color: rankColor || 'primary.main',
+                              bgcolor: rankColor ? `${rankColor}22` : 'rgba(230,0,35,0.14)',
+                              border: '1px solid',
+                              borderColor: rankColor || 'rgba(230,0,35,0.32)',
+                            }}
                           >
-                            {teamLineup.teamName}
-                          </Typography>
-                          {teamLineup.isFallback && (
-                            <Tooltip title="Formazione applicata d'ufficio dalla gara precedente">
-                              <Info color="warning" fontSize="small" />
-                            </Tooltip>
-                          )}
+                            <Typography variant="subtitle1" fontWeight={900}>
+                              {hasTeamScore ? `#${lineupIndex + 1}` : '-'}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ minWidth: 0 }}>
+                            <Stack direction="row" alignItems="center" spacing={0.75} flexWrap="wrap" useFlexGap>
+                              <Typography
+                                variant={isMobile ? "subtitle1" : "h6"}
+                                fontWeight={900}
+                                noWrap
+                              >
+                                {teamLineup.teamName}
+                              </Typography>
+                              {teamLineup.isFallback && (
+                                <Tooltip title="Formazione applicata d'ufficio dalla gara precedente">
+                                  <Chip
+                                    icon={<Info />}
+                                    label="Fallback"
+                                    color="warning"
+                                    variant="outlined"
+                                    size="small"
+                                  />
+                                </Tooltip>
+                              )}
+                            </Stack>
+                            <Typography
+                              variant={isMobile ? "caption" : "body2"}
+                              color="text.secondary"
+                              noWrap
+                            >
+                              {teamLineup.userName}
+                            </Typography>
+                          </Box>
                         </Stack>
-                        <Typography
-                          variant={isMobile ? "caption" : "body2"}
-                          color="text.secondary"
+
+                        <Box
+                          sx={{
+                            minWidth: 74,
+                            px: 1.5,
+                            py: 0.75,
+                            borderRadius: 2,
+                            textAlign: 'center',
+                            bgcolor: 'rgba(255,255,255,0.055)',
+                            border: '1px solid rgba(255,255,255,0.10)',
+                          }}
                         >
-                          di {teamLineup.userName}
-                        </Typography>
-                      </Box>
-                      <Chip
-                        label={`${teamLineup.totalPoints ?? 'N/D'} pt`}
-                        color="primary"
-                        size={isMobile ? "small" : "medium"}
-                      />
-                    </Box>
-                    {teamLineup.lineup && teamLineup.lineup.length > 0 ? (
-                      <>
-                        <List dense sx={{ p: 0 }}>
-                          {teamLineup.lineup.map((lr: any) => {
-                            const riderScore = teamLineup.riderScores?.find(
-                              (rs: any) => rs.rider === lr.rider.name
-                            );
-                            
-                            return (
-                              <ListItem key={lr.id} sx={{ px: 0 }}>
-                                <ListItemAvatar>
-                                  <Avatar
-                                    sx={{
-                                      bgcolor: 'primary.main',
-                                      width: isMobile ? 28 : 32,
-                                      height: isMobile ? 28 : 32,
-                                      fontSize: isMobile ? '0.75rem' : '0.875rem'
-                                    }}
-                                  >
-                                    {lr.rider.number}
-                                  </Avatar>
-                                </ListItemAvatar>
-                                <ListItemText
-                                  primary={
-                                    <Typography variant={isMobile ? "body2" : "body1"}>
-                                      {lr.rider.name}
-                                    </Typography>
-                                  }
-                                  secondary={
-                                    <Box component="span">
-                                      <Typography
-                                        component="span"
-                                        variant="caption"
-                                        sx={{ fontSize: isMobile ? '0.65rem' : '0.75rem' }}
-                                      >
-                                        Prev: {lr.predictedPosition || '-'}°
-                                        {riderScore && riderScore.actual && (
-                                          <> | Arr: {typeof riderScore.actual === 'number' ? `${riderScore.actual}°` : riderScore.actual}</>
-                                        )}
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800 }}>
+                            Punti
+                          </Typography>
+                          <Typography variant="h6" color={hasTeamScore ? 'primary.main' : 'text.secondary'} sx={{ fontWeight: 900, lineHeight: 1 }}>
+                            {hasTeamScore ? teamLineup.totalPoints : '-'}
+                          </Typography>
+                        </Box>
+                      </Stack>
+
+                      {lineupRows.length > 0 ? (
+                        <>
+                          <Stack spacing={1}>
+                            {lineupRows.map((lr: any) => {
+                              const riderScore = teamLineup.riderScores?.find(
+                                (rs: any) => rs.rider === lr.rider.name
+                              );
+                              const accent = lineupCategoryColors[lr.rider.category] || '#E60023';
+                              const actualLabel = formatPositionValue(riderScore?.actual);
+                              const predictedLabel = formatPositionValue(lr.predictedPosition);
+                              const points = riderScore?.points;
+                              const hasPoints = points !== null && points !== undefined && points !== '-';
+
+                              return (
+                                <Box
+                                  key={lr.id}
+                                  sx={{
+                                    p: { xs: 1, sm: 1.25 },
+                                    borderRadius: 2,
+                                    border: '1px solid rgba(255,255,255,0.10)',
+                                    bgcolor: 'rgba(255,255,255,0.045)',
+                                  }}
+                                >
+                                  <Stack direction="row" spacing={1.25} alignItems="center">
+                                    <Avatar
+                                      sx={{
+                                        bgcolor: `${accent}33`,
+                                        color: accent,
+                                        width: isMobile ? 34 : 38,
+                                        height: isMobile ? 34 : 38,
+                                        fontSize: isMobile ? '0.75rem' : '0.875rem',
+                                        fontWeight: 900,
+                                        border: `1px solid ${accent}66`,
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      {lr.rider.number}
+                                    </Avatar>
+
+                                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                                      <Typography variant={isMobile ? "body2" : "body1"} fontWeight={900} noWrap>
+                                        {lr.rider.name}
+                                      </Typography>
+                                      <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
+                                        <Chip size="small" label={`Prev ${predictedLabel}`} variant="outlined" />
+                                        <Chip
+                                          size="small"
+                                          label={`Arr ${actualLabel}`}
+                                          color={actualLabel !== '-' ? 'success' : 'default'}
+                                          variant={actualLabel !== '-' ? 'filled' : 'outlined'}
+                                        />
+                                      </Stack>
+                                    </Box>
+
+                                    <Box
+                                      sx={{
+                                        minWidth: { xs: 46, sm: 54 },
+                                        px: 1,
+                                        py: 0.75,
+                                        borderRadius: 2,
+                                        textAlign: 'center',
+                                        color: hasPoints ? 'primary.main' : 'text.secondary',
+                                        bgcolor: hasPoints ? 'rgba(230,0,35,0.14)' : 'rgba(255,255,255,0.045)',
+                                        border: '1px solid',
+                                        borderColor: hasPoints ? 'rgba(230,0,35,0.35)' : 'rgba(255,255,255,0.10)',
+                                      }}
+                                    >
+                                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800 }}>
+                                        pt
+                                      </Typography>
+                                      <Typography variant="subtitle2" fontWeight={900} lineHeight={1}>
+                                        {hasPoints ? points : '-'}
                                       </Typography>
                                     </Box>
-                                  }
-                                />
-                                <Chip
-                                  label={riderScore ? `${riderScore.points}` : '0'}
-                                  size="small"
-                                  variant={riderScore && riderScore.points ? "filled" : "outlined"}
-                                  color={riderScore && riderScore.points ? "primary" : "default"}
-                                  sx={{ 
-                                    fontSize: isMobile ? '0.65rem' : '0.75rem',
-                                    fontWeight: riderScore && riderScore.points ? 'bold' : 'normal'
-                                  }}
-                                />
-                              </ListItem>
-                            );
-                          })}
-                        </List>
+                                  </Stack>
+                                </Box>
+                              );
+                            })}
+                          </Stack>
 
-                        {teamLineup.riderScores && teamLineup.riderScores.length > 0 && (
-                          <Button
-                            size="small"
-                            fullWidth
-                            variant="outlined"
-                            onClick={() => handleShowScoreBreakdown(teamLineup)}
-                            startIcon={<BarChart />}
-                            sx={{ mt: 2 }}
-                          >
-                            Analisi Punti
-                          </Button>
-                        )}
-                      </>
-                    ) : (
-                      <Alert severity="info" variant="outlined">
-                        Lineup non ancora impostato
-                      </Alert>
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
+                          {teamLineup.riderScores && teamLineup.riderScores.length > 0 && (
+                            <Button
+                              size="small"
+                              fullWidth
+                              variant="outlined"
+                              onClick={() => handleShowScoreBreakdown(teamLineup)}
+                              startIcon={<BarChart />}
+                              sx={{ mt: 2 }}
+                            >
+                              Analisi Punti
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        <Alert severity="info" variant="outlined">
+                          Lineup non ancora impostato
+                        </Alert>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Grid>
+              );
+            })}
           </Grid>
         )}
       </LeagueTabPanel>

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Button, Box, Typography, Chip, Paper, IconButton, Collapse
+  Button, Box, Typography, Chip, Paper, Collapse, Stack, Avatar
 } from '@mui/material';
 import { EmojiEvents, ExpandMore, ExpandLess, Info } from '@mui/icons-material';
 
@@ -11,6 +11,11 @@ interface ScoreBreakdownProps {
   open: boolean;
   onClose: () => void;
   lineupData: any;
+}
+
+function formatPosition(value: unknown) {
+  if (value === null || value === undefined || value === '' || value === 'N/A' || value === '-') return '-';
+  return typeof value === 'number' ? `${value}°` : String(value).endsWith('°') ? String(value) : `${value}°`;
 }
 
 export function ScoreBreakdownDialog({ open, onClose, lineupData }: ScoreBreakdownProps) {
@@ -36,26 +41,57 @@ export function ScoreBreakdownDialog({ open, onClose, lineupData }: ScoreBreakdo
   }));
 
   const showSprintColumn = displayData.some((score: any) => score.riderCategory === 'MOTOGP');
+  const categoryColors: Record<string, string> = {
+    MOTOGP: '#E60023',
+    MOTO2: '#FF6B00',
+    MOTO3: '#2979FF',
+  };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>
-        <Box display="flex" alignItems="center" justifyContent="space-between">
-          <Typography variant="h6">{teamName}</Typography>
-          <Chip
-            icon={<EmojiEvents />}
-            label={`${totalPoints || '-'} pt`}
-            color={totalPoints ? "primary" : "default"}
-            size="small"
-          />
-        </Box>
+      <DialogTitle sx={{ pb: 1 }}>
+        <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 900, letterSpacing: 1.6 }}>
+              Analisi punti
+            </Typography>
+            <Typography variant="h6" fontWeight={900} noWrap>
+              {teamName}
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              minWidth: 86,
+              px: 1.5,
+              py: 1,
+              borderRadius: 2,
+              textAlign: 'center',
+              border: '1px solid rgba(230,0,35,0.35)',
+              bgcolor: 'rgba(230,0,35,0.14)',
+            }}
+          >
+            <EmojiEvents color={totalPoints ? "primary" : "disabled"} fontSize="small" />
+            <Typography variant="h6" color={totalPoints ? "primary.main" : "text.secondary"} sx={{ fontWeight: 900, lineHeight: 1 }}>
+              {totalPoints || '-'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800 }}>
+              punti
+            </Typography>
+          </Box>
+        </Stack>
       </DialogTitle>
       
       <DialogContent sx={{ px: { xs: 1, sm: 3 } }}>
-        {/* Tabella compatta */}
-        <TableContainer component={Paper}>
+        <TableContainer
+          component={Paper}
+          className="liquid-glass"
+          sx={{
+            border: '1px solid rgba(255,255,255,0.12)',
+            overflow: 'hidden',
+          }}
+        >
           <Table size="small">
-            <TableHead>
+            <TableHead sx={{ bgcolor: 'rgba(255,255,255,0.055)' }}>
               <TableRow>
                 <TableCell sx={{ px: 1 }}>Pilota</TableCell>
                 <TableCell align="center" sx={{ px: 0.5 }}>Prev</TableCell>
@@ -69,72 +105,101 @@ export function ScoreBreakdownDialog({ open, onClose, lineupData }: ScoreBreakdo
               </TableRow>
             </TableHead>
             <TableBody>
-              {displayData.map((score: any, index: number) => (
-                <TableRow key={index}>
-                  <TableCell sx={{ px: 1 }}>
-                    <Box display="flex" alignItems="center" gap={0.5}>
-                      <Typography variant="caption" color="text.secondary">
-                        #{score.number || '-'}
-                      </Typography>
-                      <Typography variant="body2" noWrap>
-                        {score.rider.split(' ').pop()} {/* Solo cognome per salvare spazio */}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell align="center" sx={{ px: 0.5 }}>
-                    <Typography variant="body2">{score.predicted}°</Typography>
-                  </TableCell>
-                  <TableCell align="center" sx={{ px: 0.5 }}>
-                    <Typography variant="body2">
-                      {typeof score.actual === 'number' ? `${score.actual}°` : score.actual || '-'}
-                    </Typography>
-                  </TableCell>
-                  {showSprintColumn && (
+              {displayData.map((score: any, index: number) => {
+                const accent = categoryColors[score.riderCategory] || '#E60023';
+                return (
+                  <TableRow
+                    key={index}
+                    sx={{
+                      '&:hover': { bgcolor: 'rgba(255,255,255,0.055)' },
+                      '& td': { borderColor: 'rgba(255,255,255,0.08)' },
+                    }}
+                  >
+                    <TableCell sx={{ px: 1 }}>
+                      <Stack direction="row" alignItems="center" spacing={0.75} sx={{ minWidth: 0 }}>
+                        <Avatar
+                          sx={{
+                            width: 28,
+                            height: 28,
+                            bgcolor: `${accent}2B`,
+                            color: accent,
+                            border: `1px solid ${accent}66`,
+                            fontSize: '0.72rem',
+                            fontWeight: 900,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {score.number || '-'}
+                        </Avatar>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="body2" fontWeight={800} noWrap>
+                            {score.rider.split(' ').pop()}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {score.riderCategory || '-'}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </TableCell>
                     <TableCell align="center" sx={{ px: 0.5 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        {score.riderCategory === 'MOTOGP' 
-                          ? (typeof score.sprintPosition === 'number' ? `${score.sprintPosition}°` : score.sprintPosition || '-')
-                          : '-'}
+                      <Chip size="small" variant="outlined" label={formatPosition(score.predicted)} />
+                    </TableCell>
+                    <TableCell align="center" sx={{ px: 0.5 }}>
+                      <Typography variant="body2">
+                        {formatPosition(score.actual)}
                       </Typography>
                     </TableCell>
-                  )}
-                  <TableCell align="center" sx={{ px: 0.5 }}>
-                    <Typography variant="body2">{score.base}</Typography>
-                  </TableCell>
-                  <TableCell align="center" sx={{ px: 0.5 }}>
-                    {hasScores && score.predictionMalus !== '-' ? (
-                      <Typography variant="body2" color="error">
-                        +{score.predictionMalus}
-                      </Typography>
-                    ) : '-'}
-                  </TableCell>
-                  <TableCell align="center" sx={{ px: 0.5 }}>
-                    {score.qualifyingBonus && score.qualifyingBonus < 0 ? (
-                      <Typography variant="body2" color="success.main">
-                        {score.qualifyingBonus}
-                      </Typography>
-                    ) : '0'}
-                  </TableCell>
-                  {showSprintColumn && (
+                    {showSprintColumn && (
+                      <TableCell align="center" sx={{ px: 0.5 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          {score.riderCategory === 'MOTOGP'
+                            ? formatPosition(score.sprintPosition)
+                            : '-'}
+                        </Typography>
+                      </TableCell>
+                    )}
                     <TableCell align="center" sx={{ px: 0.5 }}>
-                      {score.riderCategory === 'MOTOGP' && score.sprintBonus && score.sprintBonus < 0 ? (
-                        <Typography variant="body2" color="info.main">
-                          {score.sprintBonus}
+                      <Typography variant="body2">{score.base}</Typography>
+                    </TableCell>
+                    <TableCell align="center" sx={{ px: 0.5 }}>
+                      {hasScores && score.predictionMalus !== '-' ? (
+                        <Typography variant="body2" color="error">
+                          +{score.predictionMalus}
+                        </Typography>
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell align="center" sx={{ px: 0.5 }}>
+                      {score.qualifyingBonus && score.qualifyingBonus < 0 ? (
+                        <Typography variant="body2" color="success.main">
+                          {score.qualifyingBonus}
                         </Typography>
                       ) : '0'}
                     </TableCell>
-                  )}
-                  <TableCell align="right" sx={{ px: 1 }}>
-                    <Typography variant="body2" fontWeight="bold">
-                      {score.points}
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    {showSprintColumn && (
+                      <TableCell align="center" sx={{ px: 0.5 }}>
+                        {score.riderCategory === 'MOTOGP' && score.sprintBonus && score.sprintBonus < 0 ? (
+                          <Typography variant="body2" color="info.main">
+                            {score.sprintBonus}
+                          </Typography>
+                        ) : '0'}
+                      </TableCell>
+                    )}
+                    <TableCell align="right" sx={{ px: 1 }}>
+                      <Chip
+                        label={score.points}
+                        size="small"
+                        color={score.points !== '-' ? "primary" : "default"}
+                        variant={score.points !== '-' ? "filled" : "outlined"}
+                        sx={{ fontWeight: 900 }}
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
               
               {/* Totale */}
               {hasScores && (
-                <TableRow sx={{ backgroundColor: 'action.hover' }}>
+                <TableRow sx={{ backgroundColor: 'rgba(230,0,35,0.12)' }}>
                   <TableCell colSpan={showSprintColumn ? 8 : 7} align="right" sx={{ px: 1 }}>
                     <Typography variant="subtitle2" fontWeight="bold">
                       TOTALE
@@ -164,12 +229,20 @@ export function ScoreBreakdownDialog({ open, onClose, lineupData }: ScoreBreakdo
           </Button>
           
           <Collapse in={showHelp}>
-            <Box mt={1} p={1.5} bgcolor="action.hover" borderRadius={1}>
+            <Box
+              mt={1}
+              p={1.5}
+              borderRadius={2}
+              sx={{
+                bgcolor: 'rgba(255,255,255,0.055)',
+                border: '1px solid rgba(255,255,255,0.10)',
+              }}
+            >
               <Typography variant="caption" component="div" gutterBottom>
                 <strong>Formula:</strong> Base + Malus + Bonus Qual + Bonus Sprint = Totale
               </Typography>
               <Typography variant="caption" component="div" color="error" gutterBottom>
-                ⚠️ <strong>Vince chi fa MENO punti</strong>
+                <strong>Attenzione:</strong> vince chi fa MENO punti
               </Typography>
               
               <Typography variant="caption" component="div" sx={{ mt: 1 }}>
