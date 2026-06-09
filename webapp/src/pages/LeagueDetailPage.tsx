@@ -34,9 +34,96 @@ import { LeagueSeasonReset } from '../components/LeagueSeasonReset';
 import { LeagueStatsTab } from '../components/league/LeagueStatsTab';
 import { LeagueTabPanel } from '../components/league/LeagueTabPanel';
 import { MobileStandingCard } from '../components/league/MobileStandingCard';
-import { MetricTile } from '../components/ui/MetricTile';
 import type { LeagueStanding } from '../components/league/MobileStandingCard';
 import { getGpDate, getLineupDeadlineDate } from '../utils/raceDates';
+
+function LeagueStat({
+  label,
+  value,
+  helper,
+  icon,
+  tone = 'primary',
+}: {
+  label: string;
+  value: React.ReactNode;
+  helper?: React.ReactNode;
+  icon: React.ReactNode;
+  tone?: 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info';
+}) {
+  return (
+    <Paper
+      className="liquid-glass"
+      sx={{
+        p: { xs: 1.25, sm: 1.5 },
+        height: '100%',
+        minHeight: { xs: 82, sm: 94 },
+        borderRadius: 2,
+        border: '1px solid',
+        borderColor: `${tone}.main`,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1.25,
+      }}
+    >
+      <Box
+        sx={{
+          width: { xs: 34, sm: 38 },
+          height: { xs: 34, sm: 38 },
+          borderRadius: 2,
+          display: 'grid',
+          placeItems: 'center',
+          color: `${tone}.main`,
+          backgroundColor: (theme) => `${theme.palette[tone].main}24`,
+          flexShrink: 0,
+        }}
+      >
+        {icon}
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800 }}>
+          {label}
+        </Typography>
+        <Typography variant="h6" sx={{ fontWeight: 900, lineHeight: 1.08 }}>
+          {value}
+        </Typography>
+        {helper && (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              display: '-webkit-box',
+              WebkitLineClamp: 1,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {helper}
+          </Typography>
+        )}
+      </Box>
+    </Paper>
+  );
+}
+
+function LeagueTabLabel({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <Stack spacing={0.35} alignItems="center" sx={{ minWidth: 0 }}>
+      {icon}
+      <Typography
+        variant="caption"
+        sx={{
+          fontWeight: 800,
+          lineHeight: 1,
+          maxWidth: '100%',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {label}
+      </Typography>
+    </Stack>
+  );
+}
 
 export default function LeagueDetailPage() {
   const { leagueId } = useParams<{ leagueId: string }>();
@@ -49,7 +136,6 @@ export default function LeagueDetailPage() {
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   const [selectedTab, setSelectedTab] = useState(0);
-  const [showSettings, setShowSettings] = useState(false);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
   const [selectedLineup, setSelectedLineup] = useState<any>(null);
@@ -121,7 +207,6 @@ export default function LeagueDetailPage() {
     onSuccess: () => {
       notify('Impostazioni aggiornate con successo', 'success');
       queryClient.invalidateQueries({ queryKey: queryKeys.leagues.detail(leagueId) });
-      setShowSettings(false);
     },
     onError: (error: any) => {
       notify(error.response?.data?.error || 'Errore aggiornamento impostazioni', 'error');
@@ -219,99 +304,118 @@ export default function LeagueDetailPage() {
     setShowScoreBreakdown(true);
   };
 
+  const teamCount = league.teams?.length ?? league.currentTeams ?? 0;
+  const hasLineupAction = nextRace && userHasTeam && !isLocked;
+  const lineupMissing = Boolean(hasLineupAction && !hasLineupForNextRace);
+  const deadlineValue = deadline
+    ? isLocked
+      ? 'Chiusa'
+      : daysUntilDeadline && daysUntilDeadline > 0
+      ? `${daysUntilDeadline}g`
+      : `${Math.max(0, hoursUntilDeadline || 0)}h`
+    : '-';
+  const countdownLabel =
+    daysUntilDeadline !== null && daysUntilDeadline > 0
+      ? `${daysUntilDeadline} giorni`
+      : hoursUntilDeadline !== null && hoursUntilDeadline > 0
+      ? `${hoursUntilDeadline} ore`
+      : 'In scadenza';
+
   return (
     <Box sx={{ pb: isMobile ? 2 : 0 }}>
       {/* Header Lega - Responsive */}
       <Paper
+        className="liquid-glass-strong"
         sx={{
-          p: { xs: 2, md: 3 },
+          p: { xs: 2, md: 2.5 },
           mb: 2,
           overflow: 'hidden',
           position: 'relative',
-          background: `
-            linear-gradient(135deg, rgba(230,0,35,0.48) 0%, rgba(15,15,19,0.98) 58%),
-            radial-gradient(circle at 92% 10%, rgba(255,107,0,0.22), transparent 30%)
+          backgroundImage: `
+            linear-gradient(135deg, rgba(230,0,35,0.34), rgba(18,18,25,0.78) 46%, rgba(255,255,255,0.04)),
+            radial-gradient(circle at 92% 2%, rgba(255,107,0,0.20), transparent 30%)
           `,
           color: 'white',
-          border: '1px solid rgba(230,0,35,0.28)'
+          border: '1px solid rgba(230,0,35,0.30)',
         }}
       >
         <EmojiEvents
           sx={{
             position: 'absolute',
-            right: { xs: -36, md: 20 },
-            top: { xs: -42, md: -34 },
-            fontSize: { xs: 170, md: 260 },
-            opacity: 0.08,
+            right: { xs: -58, md: 20 },
+            top: { xs: -56, md: -52 },
+            fontSize: { xs: 190, md: 260 },
+            opacity: 0.055,
             transform: 'rotate(10deg)',
           }}
         />
-        <Grid container alignItems="center" spacing={2}>
-          <Grid size={{ xs: 12, md: 8}}>
-            <Typography variant="overline" sx={{ fontWeight: 900, opacity: 0.78 }}>
+        <Grid container alignItems="flex-start" spacing={2} sx={{ position: 'relative' }}>
+          <Grid size={{ xs: 12, md: 9 }}>
+            <Typography variant="overline" sx={{ fontWeight: 900, opacity: 0.72, letterSpacing: 2 }}>
               Hub lega
             </Typography>
             <Typography
-              variant={isMobile ? "h5" : "h4"}
-              gutterBottom
-              sx={{ fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.05 }}
+              variant={isMobile ? 'h5' : 'h4'}
+              sx={{ fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.04, mb: 1.5 }}
             >
               {league.name}
             </Typography>
             <Stack
               direction="row"
-              spacing={1}
+              spacing={0.75}
               flexWrap="wrap"
               useFlexGap
+              sx={{
+                '& .MuiChip-root': {
+                  maxWidth: '100%',
+                  bgcolor: 'rgba(255,255,255,0.14)',
+                  color: 'white',
+                  border: '1px solid rgba(255,255,255,0.14)',
+                },
+                '& .MuiChip-label': {
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                },
+              }}
             >
               <Chip
                 icon={<ContentCopy sx={{ color: 'white !important' }} />}
                 label={`Codice: ${league.code}`}
                 onClick={handleShareCode}
-                size={isMobile ? "small" : "medium"}
+                size={isMobile ? 'small' : 'medium'}
                 sx={{
-                  backgroundColor: 'rgba(255,255,255,0.2)',
-                  color: 'white',
                   fontSize: isMobile ? '0.7rem' : '0.875rem',
-                  '&:hover': { backgroundColor: 'rgba(255,255,255,0.3)' }
+                  '&:hover': { backgroundColor: 'rgba(255,255,255,0.22)' },
                 }}
               />
               <Chip
                 icon={<Groups sx={{ color: 'white !important' }} />}
-                label={`${league.teams?.length || 0}/${league.maxTeams}`}
-                size={isMobile ? "small" : "medium"}
-                sx={{
-                  backgroundColor: 'rgba(255,255,255,0.2)',
-                  color: 'white',
-                  fontSize: isMobile ? '0.7rem' : '0.875rem'
-                }}
+                label={`${teamCount}/${league.maxTeams} team`}
+                size={isMobile ? 'small' : 'medium'}
+                sx={{ fontSize: isMobile ? '0.7rem' : '0.875rem' }}
               />
               <Chip
                 icon={<SportsMotorsports sx={{ color: 'white !important' }} />}
-                label={userHasTeam ? myTeam.name : 'Team da creare'}
-                size={isMobile ? "small" : "medium"}
-                sx={{
-                  backgroundColor: 'rgba(255,255,255,0.2)',
-                  color: 'white',
-                  fontSize: isMobile ? '0.7rem' : '0.875rem'
-                }}
+                label={userHasTeam ? `Team: ${myTeam.name}` : 'Team da creare'}
+                size={isMobile ? 'small' : 'medium'}
+                sx={{ fontSize: isMobile ? '0.7rem' : '0.875rem' }}
               />
               {league.teamsLocked && (
                 <Chip
                   icon={<Lock sx={{ color: 'white !important' }} />}
-                  label="Team Bloccati"
-                  size={isMobile ? "small" : "medium"}
+                  label="Team bloccati"
+                  size={isMobile ? 'small' : 'medium'}
                   sx={{
-                    backgroundColor: 'rgba(255,0,0,0.3)',
-                    color: 'white',
-                    fontSize: isMobile ? '0.7rem' : '0.875rem'
+                    bgcolor: 'rgba(230,0,35,0.28) !important',
+                    borderColor: 'rgba(230,0,35,0.45) !important',
+                    fontSize: isMobile ? '0.7rem' : '0.875rem',
                   }}
                 />
               )}
             </Stack>
           </Grid>
 
-          <Grid size={{ xs: 12, md: 4}} sx={{ textAlign: { xs: 'left', md: 'right' } }}>
+          <Grid size={{ xs: 12, md: 3 }} sx={{ textAlign: { xs: 'left', md: 'right' } }}>
             <Stack
               direction="row"
               spacing={1}
@@ -322,23 +426,16 @@ export default function LeagueDetailPage() {
                 <IconButton
                   color="inherit"
                   onClick={() => forceRefresh()}
-                  sx={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
-                  size={isMobile ? "small" : "medium"}
+                  sx={{
+                    backgroundColor: 'rgba(255,255,255,0.12)',
+                    border: '1px solid rgba(255,255,255,0.14)',
+                    '&:hover': { backgroundColor: 'rgba(255,255,255,0.20)' },
+                  }}
+                  size={isMobile ? 'small' : 'medium'}
                 >
                   <Refresh />
                 </IconButton>
               </Tooltip>
-
-              {nextRace && userHasTeam && !isLocked && (
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  size={isMobile ? "small" : "medium"}
-                  onClick={handleManageLineup}
-                >
-                  {hasLineupForNextRace ? 'Aggiorna lineup' : 'Schiera'}
-                </Button>
-              )}
             </Stack>
           </Grid>
         </Grid>
@@ -346,7 +443,7 @@ export default function LeagueDetailPage() {
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid size={{ xs: 6, md: 3 }}>
-          <MetricTile
+          <LeagueStat
             label="Posizione"
             value={userHasTeam && myPosition > 0 ? `#${myPosition}` : '-'}
             helper={userHasTeam ? `${myTeam.totalPoints || 0} punti` : 'crea un team'}
@@ -355,16 +452,16 @@ export default function LeagueDetailPage() {
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <MetricTile
+          <LeagueStat
             label="Team"
-            value={`${league.teams?.length || 0}/${league.maxTeams}`}
+            value={`${teamCount}/${league.maxTeams}`}
             helper={league.teamsLocked ? 'mercato chiuso' : 'posti lega'}
             icon={<Groups />}
             tone={league.teamsLocked ? 'error' : 'primary'}
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <MetricTile
+          <LeagueStat
             label="Budget"
             value={league.budget}
             helper="crediti iniziali"
@@ -373,18 +470,10 @@ export default function LeagueDetailPage() {
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <MetricTile
+          <LeagueStat
             label="Deadline"
-            value={
-              deadline
-                ? isLocked
-                  ? 'Chiusa'
-                  : daysUntilDeadline && daysUntilDeadline > 0
-                  ? `${daysUntilDeadline}g`
-                  : `${Math.max(0, hoursUntilDeadline || 0)}h`
-                : '-'
-            }
-            helper={nextRace?.name || 'nessuna gara'}
+            value={deadlineValue}
+            helper={nextRace ? 'prossima gara' : 'nessuna gara'}
             icon={<Timer />}
             tone={isLocked ? 'error' : 'success'}
           />
@@ -393,104 +482,135 @@ export default function LeagueDetailPage() {
 
       {/* Box Scadenza Gara - Responsive */}
       {nextRace && deadline && (
-        <Paper sx={{ p: isMobile ? 1.5 : 2, mb: 2, bgcolor: isLocked ? 'error.light' : 'action.hover', border: isLocked ? '1px solid' : 'none', borderColor: 'error.main' }}>
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            alignItems={{ xs: 'stretch', sm: 'center' }}
-            spacing={{ xs: 2, sm: 3 }}
-            justifyContent="space-between"
-          >
-            <Box>
-              <Typography
-                variant="overline"
-                color={isLocked ? "error.dark" : "text.secondary"}
-                sx={{ fontSize: isMobile ? '0.65rem' : '0.75rem', fontWeight: isLocked ? 'bold' : 'normal' }}
-              >
-                Prossimo Evento
-              </Typography>
-              <Typography
-                variant={isMobile ? "subtitle1" : "h6"}
-                sx={{ fontWeight: 'bold', color: isLocked ? "error.dark" : "text.primary" }}
-              >
-                {nextRace.name}
-              </Typography>
-            </Box>
-
-            <Divider
-              orientation="vertical"
-              flexItem
-              sx={{ display: { xs: 'none', sm: 'block' }, borderColor: isLocked ? 'error.main' : 'divider' }}
-            />
-
-            <Box>
-              <Typography
-                variant="overline"
-                color={isLocked ? "error.main" : "text.secondary"}
-                sx={{ fontSize: isMobile ? '0.65rem' : '0.75rem', fontWeight: 'bold' }}
-              >
-                {isLocked ? "SCADENZA TERMINATA" : "Deadline Schieramento"}
-              </Typography>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Timer color={isLocked ? "error" : "primary"} fontSize={isMobile ? "small" : "medium"} />
-                <Typography
-                  variant={isMobile ? "body2" : "h6"}
-                  color={isLocked ? "error.main" : "primary.main"}
-                  sx={{ fontWeight: 'medium' }}
-                >
-                  {format(deadline, isMobile ? 'dd MMM HH:mm' : 'eeee dd MMMM HH:mm', { locale: it })}
+        <Paper
+          className="liquid-glass-strong"
+          sx={{
+            p: { xs: 2, md: 2.5 },
+            mb: 2,
+            borderRadius: 3,
+            borderColor: isLocked ? 'error.main' : 'rgba(255,255,255,0.16)',
+          }}
+        >
+          <Stack spacing={2}>
+            <Stack direction="row" spacing={1.5} alignItems="flex-start" justifyContent="space-between">
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 900, letterSpacing: 1.8 }}>
+                  Prossimo evento
                 </Typography>
-              </Stack>
-            </Box>
-
-            <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'block' } }} />
-
-            {isLocked ? (
-              <Box display="flex" alignItems="center" gap={1} justifyContent={isMobile ? "center" : "flex-end"} py={isMobile ? 1 : 0}>
-                <Flag color="error" />
-                <Typography variant="h6" color="error" fontWeight="900" fontStyle="italic">
-                  GARA IN CORSO
+                <Typography
+                  variant={isMobile ? 'h6' : 'h5'}
+                  sx={{
+                    fontWeight: 900,
+                    lineHeight: 1.12,
+                    textTransform: 'uppercase',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {nextRace.name}
                 </Typography>
               </Box>
-            ) : (
-              <>
-                {daysUntilDeadline !== null && daysUntilDeadline >= 0 && (
-                  <Chip
-                    label={
-                      daysUntilDeadline > 0
-                        ? `${daysUntilDeadline} giorni`
-                        : (hoursUntilDeadline != null && hoursUntilDeadline > 0)
-                        ? `${hoursUntilDeadline} ore`
-                        : 'In scadenza!'
-                    }
-                    color={
-                      daysUntilDeadline < 1
-                        ? 'error'
-                        : daysUntilDeadline <= 3
-                        ? 'warning'
-                        : 'success'
-                    }
-                    size={isMobile ? "small" : "medium"}
-                    sx={{ fontWeight: 'bold' }}
-                  />
-                )}
-                
-                <Button
-                  variant="contained"
-                  onClick={handleManageLineup}
-                  disabled={!userHasTeam}
-                  fullWidth={isMobile}
-                  size={isMobile ? "small" : "medium"}
+              <Chip
+                label={
+                  isLocked
+                    ? 'Chiusa'
+                    : hasLineupForNextRace
+                    ? 'Lineup pronta'
+                    : userHasTeam
+                    ? 'Da schierare'
+                    : 'Team mancante'
+                }
+                color={isLocked ? 'error' : hasLineupForNextRace ? 'success' : userHasTeam ? 'warning' : 'default'}
+                size="small"
+                sx={{ flexShrink: 0, fontWeight: 900 }}
+              />
+            </Stack>
+
+            <Grid container spacing={1.25}>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Box
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    bgcolor: 'rgba(255,255,255,0.055)',
+                    border: '1px solid rgba(255,255,255,0.10)',
+                  }}
                 >
-                  {hasLineupForNextRace ? 'Aggiorna schieramento' : 'Schiera'}
-                </Button>
-              </>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800 }}>
+                    Deadline schieramento
+                  </Typography>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+                    <Timer color={isLocked ? 'error' : 'primary'} fontSize="small" />
+                    <Typography variant="body2" fontWeight={800}>
+                      {format(deadline, isMobile ? 'dd MMM HH:mm' : 'eeee dd MMMM HH:mm', { locale: it })}
+                    </Typography>
+                  </Stack>
+                </Box>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Box
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    bgcolor: isLocked ? 'rgba(255,51,51,0.12)' : 'rgba(0,230,118,0.10)',
+                    border: '1px solid',
+                    borderColor: isLocked ? 'error.main' : 'success.main',
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800 }}>
+                    Stato deadline
+                  </Typography>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+                    {isLocked ? <Flag color="error" fontSize="small" /> : <Timer color="success" fontSize="small" />}
+                    <Typography variant="body2" fontWeight={900} color={isLocked ? 'error.main' : 'success.main'}>
+                      {isLocked ? 'Gara in corso' : countdownLabel}
+                    </Typography>
+                  </Stack>
+                </Box>
+              </Grid>
+            </Grid>
+
+            {lineupMissing && (
+              <Box
+                sx={{
+                  p: 1.25,
+                  borderRadius: 2,
+                  bgcolor: 'rgba(41,121,255,0.12)',
+                  border: '1px solid rgba(41,121,255,0.28)',
+                  display: 'flex',
+                  gap: 1,
+                  alignItems: 'flex-start',
+                }}
+              >
+                <Info color="info" fontSize="small" />
+                <Typography variant="body2" color="info.light">
+                  Lineup non ancora impostata per questa gara.
+                </Typography>
+              </Box>
+            )}
+
+            {!isLocked && (
+              <Button
+                variant="contained"
+                onClick={userHasTeam ? handleManageLineup : handleCreateTeam}
+                fullWidth={isMobile}
+                size={isMobile ? 'medium' : 'large'}
+              >
+                {userHasTeam
+                  ? hasLineupForNextRace
+                    ? 'Aggiorna schieramento'
+                    : 'Schiera'
+                  : 'Crea team'}
+              </Button>
             )}
           </Stack>
         </Paper>
       )}
 
       {/* Alert per utente senza team */}
-      {!userHasTeam && (
+      {!userHasTeam && !nextRace && (
         <Alert
           severity="warning"
           action={
@@ -508,65 +628,48 @@ export default function LeagueDetailPage() {
         </Alert>
       )}
 
-      {/* Alert per lineup mancante */}
-      {userHasTeam && nextRace && !hasLineupForNextRace && !loadingLineups && !isLocked && (
-        <Alert
-          severity="info"
-          action={
-            <Button
-              color="inherit"
-              size="small"
-              onClick={handleManageLineup}
-            >
-              Imposta Lineup
-            </Button>
-          }
-          sx={{ mb: 2 }}
-        >
-          Non hai ancora impostato il lineup per la prossima gara ({nextRace.name})
-        </Alert>
-      )}
-
       {/* Tabs - Responsive */}
-      <Paper className="liquid-glass-nav" sx={{ mb: 2, borderRadius: 2, overflow: 'hidden' }}>
+      <Paper
+        className="liquid-glass-nav"
+        sx={{
+          mb: 1.5,
+          borderRadius: 3,
+          overflow: 'hidden',
+          position: { xs: 'sticky', md: 'static' },
+          top: { xs: 76, md: 'auto' },
+          zIndex: 95,
+        }}
+      >
         <Tabs
           value={selectedTab}
           onChange={(_, v) => setSelectedTab(v)}
-          variant={isMobile ? "scrollable" : "standard"}
-          scrollButtons={isMobile ? "auto" : false}
+          variant={isMobile ? 'fullWidth' : 'standard'}
+          scrollButtons={false}
+          sx={{
+            '& .MuiTabs-flexContainer': {
+              gap: 0,
+            },
+            '& .MuiTab-root': {
+              minWidth: 0,
+              minHeight: { xs: 64, sm: 58 },
+              px: { xs: 0.5, sm: 2 },
+              mx: 0.25,
+              py: 1,
+            },
+          }}
         >
           <Tab
-            label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <EmojiEvents fontSize="small" />
-                {!isMobile && <Typography variant="body2">Classifica</Typography>}
-              </Box>
-            }
+            label={<LeagueTabLabel icon={<EmojiEvents fontSize="small" />} label="Classifica" />}
           />
           <Tab
-            label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <SportsMotorsports fontSize="small" />
-                {!isMobile && <Typography variant="body2">Lineup</Typography>}
-              </Box>
-            }
+            label={<LeagueTabLabel icon={<SportsMotorsports fontSize="small" />} label="Lineup" />}
           />
           <Tab
-            label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <BarChart fontSize="small" />
-                {!isMobile && <Typography variant="body2">Stats</Typography>}
-              </Box>
-            }
+            label={<LeagueTabLabel icon={<BarChart fontSize="small" />} label="Stats" />}
           />
           {isAdmin && (
             <Tab
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <Settings fontSize="small" />
-                  {!isMobile && <Typography variant="body2">Admin</Typography>}
-                </Box>
-              }
+              label={<LeagueTabLabel icon={<Settings fontSize="small" />} label="Admin" />}
             />
           )}
         </Tabs>
