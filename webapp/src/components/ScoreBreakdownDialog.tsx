@@ -16,7 +16,10 @@ interface ScoreBreakdownProps {
 
 function formatPosition(value: unknown) {
   if (value === null || value === undefined || value === '' || value === 'N/A' || value === '-') return '-';
-  return typeof value === 'number' ? `${value}°` : String(value).endsWith('°') ? String(value) : `${value}°`;
+  if (typeof value === 'number') return `${value}°`;
+  const text = String(value);
+  if (text.endsWith('°')) return text;
+  return Number.isFinite(Number(text)) ? `${text}°` : text;
 }
 
 export function ScoreBreakdownDialog({ open, onClose, lineupData }: ScoreBreakdownProps) {
@@ -29,19 +32,32 @@ export function ScoreBreakdownDialog({ open, onClose, lineupData }: ScoreBreakdo
   const { teamName, totalPoints, riderScores = [], lineup = [] } = lineupData;
   const hasScores = riderScores && riderScores.length > 0;
 
-  const displayData = hasScores ? riderScores : lineup.map((l: any) => ({
-    rider: l.rider.name,
-    number: l.rider.number,
-    riderCategory: l.rider.category,
-    predicted: l.predictedPosition,
-    actual: 'N/A',
-    sprintPosition: 'N/A',
-    base: '-',
-    predictionMalus: '-',
-    qualifyingBonus: '-',
-    sprintBonus: '-',
-    points: '-',
-  }));
+  const findLineupRider = (score: any) => lineup.find((l: any) => l.rider?.name === score.rider)
+    || lineup.find((l: any) => l.rider?.category === score.riderCategory && l.predictedPosition === score.predicted);
+
+  const displayData = hasScores
+    ? riderScores.map((score: any) => {
+      const lineupRider = findLineupRider(score);
+      return {
+        ...score,
+        rider: score.rider || lineupRider?.rider?.name || '-',
+        number: score.number ?? lineupRider?.rider?.number ?? '-',
+        riderCategory: score.riderCategory || lineupRider?.rider?.category || '-',
+      };
+    })
+    : lineup.map((l: any) => ({
+      rider: l.rider.name,
+      number: l.rider.number,
+      riderCategory: l.rider.category,
+      predicted: l.predictedPosition,
+      actual: 'N/A',
+      sprintPosition: 'N/A',
+      base: '-',
+      predictionMalus: '-',
+      qualifyingBonus: '-',
+      sprintBonus: '-',
+      points: '-',
+    }));
 
   const showSprintColumn = displayData.some((score: any) => score.riderCategory === 'MOTOGP');
   const categoryColors: Record<string, string> = {
