@@ -1,10 +1,33 @@
 // backend/src/controllers/syncController.ts
 import { Request, Response } from 'express'; 
+import axios from 'axios';
 import { AuthRequest } from '../middleware/auth';
 import { motogpApi } from '../services/motogpApiService';
 import { PrismaClient, SessionType, Category } from '@prisma/client';
 
 const prisma = new PrismaClient();
+
+const parseBooleanOption = (value: unknown, fallback: boolean) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') return value === 'true';
+  return fallback;
+};
+
+const getGitHubWorkflowConfig = () => {
+  const token = process.env.GITHUB_ACTIONS_TOKEN || process.env.GITHUB_WORKFLOW_TOKEN || process.env.GITHUB_TOKEN;
+  const repository = process.env.GITHUB_REPOSITORY;
+  const [repositoryOwner, repositoryName] = repository?.split('/') || [];
+  const owner = process.env.GITHUB_OWNER || repositoryOwner;
+  const repo = process.env.GITHUB_REPO || process.env.GITHUB_REPOSITORY_NAME || repositoryName;
+  const workflowId = process.env.GITHUB_WORKFLOW_ID || 'cron-jobs.yml';
+  const ref = process.env.GITHUB_WORKFLOW_REF || process.env.VERCEL_GIT_COMMIT_REF || 'main';
+
+  if (!token || !owner || !repo) {
+    return null;
+  }
+
+  return { token, owner, repo, workflowId, ref };
+};
 
 export const syncScopedSession = async (req: Request, res: Response) => {
   const { raceId } = req.params;
@@ -189,6 +212,117 @@ export const syncRaceResults = async (req: AuthRequest, res: Response) => {
     console.error('Errore sync risultati:', error);
     res.status(500).json({ 
       error: 'Errore durante la sincronizzazione dei risultati' 
+    });
+  }
+};
+
+// POST /api/sync/github/races/:raceId/refresh - Avvia workflow GitHub Actions per refresh race scoped
+export const dispatchRaceRefreshWorkflow = async (req: AuthRequest, res: Response) => {
+  const { raceId } = req.params;
+  const recalculateScores = parseBooleanOption(req.body?.recalculateScores, true);
+  const clearExistingResults = parseBooleanOption(req.body?.clearExistingResults, true);
+  const config = getGitHubWorkflowConfig();
+
+  if (!config) {
+    return res.status(500).json({
+      error: 'Configurazione GitHub Actions mancante. Imposta token e repository nelle variabili ambiente.',
+    });
+  }
+
+  try {
+    const race = await prisma.race.findUnique({
+      where: { id: raceId },
+      select: { id: true, name: true, round: true, season: true },
+    });
+
+    if (!race) {
+      return res.status(404).json({ error: 'Gara non trovata' });
+    }
+
+    const inputs = {
+      race_id: race.id,
+      recalculate_scores: recalculateScores ? 'true' : 'false',
+      clear_existing_results: clearExistingResults ? 'true' : 'false',
+    };
+
+    const syncLog = await prisma.syncLog.create({
+      data: {
+        type: 'RACE_RESULTS',
+        status: 'PENDING',
+        message: `Dispatch GitHub Actions per refresh ${race.name}`,
+        details: {
+          raceId: race.id,
+          raceName: race.name,
+          recalculateScores,
+          clearExistingResults,
+          workflowId: config.workflowId,
+          ref: config.ref,
+          requestedBy: req.userId,
+        },
+      },
+    });
+
+    await axios.post(
+      `https://api.github.com/repos/${config.owner}/${config.repo}/actions/workflows/${encodeURIComponent(config.workflowId)}/dispatches`,
+      {
+        ref: config.ref,
+        inputs,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${config.token}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+      }
+    );
+
+    await prisma.syncLog.update({
+      where: { id: syncLog.id },
+      data: {
+        status: 'COMPLETED',
+        message: `Workflow GitHub Actions avviato per ${race.name}`,
+        completedAt: new Date(),
+      },
+    });
+
+    return res.status(202).json({
+      success: true,
+      message: `Refresh dati avviato per ${race.name}.`,
+      race,
+      workflow: {
+        repository: `${config.owner}/${config.repo}`,
+        workflowId: config.workflowId,
+        ref: config.ref,
+        inputs,
+      },
+    });
+  } catch (error: any) {
+    const githubStatus = axios.isAxiosError(error) ? error.response?.status : undefined;
+    const githubError = axios.isAxiosError(error) ? error.response?.data : undefined;
+
+    await prisma.syncLog.create({
+      data: {
+        type: 'RACE_RESULTS',
+        status: 'FAILED',
+        message: 'Errore dispatch GitHub Actions per refresh race',
+        details: {
+          raceId,
+          recalculateScores,
+          clearExistingResults,
+          githubStatus,
+          githubError,
+          error: error.message,
+          requestedBy: req.userId,
+        },
+        completedAt: new Date(),
+      },
+    });
+
+    console.error('Errore dispatch GitHub Actions refresh race:', githubError || error);
+    return res.status(500).json({
+      error: 'Errore durante l\'avvio del workflow GitHub Actions',
+      details: githubStatus ? { githubStatus } : undefined,
     });
   }
 };

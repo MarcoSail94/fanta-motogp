@@ -9,13 +9,29 @@ on:
     - cron: '*/40 * * * 0'     # Domenica ogni 40 minuti
     - cron: '0 9 * * 1'        # Lunedì 09:00 - Calcolo punteggi finale
   workflow_dispatch:
+    inputs:
+      race_id:
+        description: 'Race ID specifica da sincronizzare. Vuoto = rileva weekend corrente.'
+        required: false
+        default: ''
+        type: string
+      recalculate_scores:
+        description: 'Ricalcola la giornata dopo il refresh'
+        required: false
+        default: true
+        type: boolean
+      clear_existing_results:
+        description: 'Cancella i risultati esistenti della race prima della matrix'
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   # JOB 1: SYNC SETTIMANALE (sempre attivo, non dipende da race weekend)
   sync_base_data:
     name: 1. Sync Base Data (Weekly)
     runs-on: ubuntu-latest
-    if: github.event.schedule == '0 4 * * 2' || github.event_name == 'workflow_dispatch'
+    if: github.event.schedule == '0 4 * * 2' || (github.event_name == 'workflow_dispatch' && github.event.inputs.race_id == '')
     steps:
       - name: Trigger Riders & Calendar Sync
         env:
@@ -42,6 +58,15 @@ jobs:
       - name: Check for race this weekend
         id: check
         run: |
+          INPUT_RACE_ID="${{ github.event.inputs.race_id }}"
+
+          if [ -n "$INPUT_RACE_ID" ]; then
+            echo "IS_RACE_WEEKEND=true" >> $GITHUB_OUTPUT
+            echo "RACE_ID=$INPUT_RACE_ID" >> $GITHUB_OUTPUT
+            echo "🎯 Refresh manuale richiesto per Race ID: $INPUT_RACE_ID"
+            exit 0
+          fi
+
           response=$(curl --fail -s "https://fanta-motogp.vercel.app/api/races/is-race-weekend")
           IS_RACE_WEEKEND=$(echo "$response" | jq -r '.isRaceWeekend')
           RACE_ID=$(echo "$response" | jq -r '.raceId // ""')
@@ -55,11 +80,32 @@ jobs:
             echo "🏖️  Nessuna gara questo weekend - Sync sessions skipped"
           fi
 
-  # JOB 3: SYNC SESSIONS (solo se c'è una gara questo weekend)
-  sync_sessions:
-    name: 2b. Sync ${{ matrix.category }} - ${{ matrix.session }}
+  # JOB 2b: PREPARE RACE SYNC (manual dispatch can clear old results before matrix)
+  prepare_race_sync:
+    name: 2b. Prepare Race Sync
     runs-on: ubuntu-latest
     needs: check_race_weekend
+    if: |
+      needs.check_race_weekend.outputs.is_race_weekend == 'true' &&
+      needs.check_race_weekend.outputs.race_id != ''
+    steps:
+      - name: Clear existing race results
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.clear_existing_results == 'true'
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          RACE_ID: ${{ needs.check_race_weekend.outputs.race_id }}
+        run: |
+          API_URL="https://fanta-motogp.vercel.app/api/sync/race-results/$RACE_ID"
+          curl --fail -X DELETE "$API_URL" -H "Authorization: Bearer $CRON_SECRET"
+      - name: Keep existing race results
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.clear_existing_results != 'true'
+        run: echo "Risultati esistenti mantenuti prima della matrix."
+
+  # JOB 3: SYNC SESSIONS (solo se c'è una gara questo weekend)
+  sync_sessions:
+    name: 2c. Sync ${{ matrix.category }} - ${{ matrix.session }}
+    runs-on: ubuntu-latest
+    needs: [check_race_weekend, prepare_race_sync]
     if: |
       needs.check_race_weekend.outputs.is_race_weekend == 'true' && 
       needs.check_race_weekend.outputs.race_id != ''
@@ -86,9 +132,9 @@ jobs:
   calculate_scores:
     name: 3. Calculate Final Scores (Monday)
     runs-on: ubuntu-latest
-    needs: check_race_weekend
+    needs: [check_race_weekend, sync_sessions]
     if: |
-      (github.event.schedule == '0 9 * * 1' || github.event_name == 'workflow_dispatch') &&
+      (github.event.schedule == '0 9 * * 1' || (github.event_name == 'workflow_dispatch' && github.event.inputs.recalculate_scores != 'false')) &&
       needs.check_race_weekend.outputs.is_race_weekend == 'true' &&
       needs.check_race_weekend.outputs.race_id != ''
     steps:

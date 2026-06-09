@@ -60,7 +60,8 @@ export const register = async (req: Request, res: Response) => {
         id: true,
         email: true,
         username: true,
-        credits: true
+        credits: true,
+        isAdmin: true
       }
     });
 
@@ -122,7 +123,8 @@ export const login = async (req: Request, res: Response) => {
         id: user.id,
         email: user.email,
         username: user.username,
-        credits: user.credits
+        credits: user.credits,
+        isAdmin: user.isAdmin
       }
     });
   } catch (error) {
@@ -143,6 +145,7 @@ export const getProfile = async (req: Request, res: Response) => {
         email: true,
         username: true,
         credits: true,
+        isAdmin: true,
         createdAt: true,
         teams: {
           include: {

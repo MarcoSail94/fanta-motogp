@@ -222,6 +222,17 @@ export const syncRaceResults = async (raceId: string) => {
   return response.data;
 };
 
+export const triggerRaceDataRefresh = async (
+  raceId: string,
+  options?: { recalculateScores?: boolean; clearExistingResults?: boolean }
+) => {
+  const response = await api.post(`/sync/github/races/${raceId}/refresh`, {
+    recalculateScores: options?.recalculateScores ?? true,
+    clearExistingResults: options?.clearExistingResults ?? true,
+  });
+  return response.data;
+};
+
 export const getPastRacesWithStatus = async () => {
   return getPastRaces();
 };

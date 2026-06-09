@@ -53,6 +53,7 @@ router.use(requireAdmin);
 router.post('/riders', syncController.syncRiders);
 router.post('/calendar', syncController.syncCalendar);
 router.post('/race-results/:raceId', syncController.syncRaceResults);
+router.post('/github/races/:raceId/refresh', syncController.dispatchRaceRefreshWorkflow);
 
 // Route informative per admin
 router.get('/logs', syncController.getSyncLogs);
