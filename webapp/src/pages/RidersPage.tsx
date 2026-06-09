@@ -15,6 +15,8 @@ import {
   ToggleButton,
   Paper,
   Alert,
+  Chip,
+  Stack,
 } from '@mui/material';
 import { Search, SportsMotorsports } from '@mui/icons-material';
 import { RiderCard } from '../components/RiderCard';
@@ -24,6 +26,12 @@ import { PageHeader } from '../components/ui/PageHeader';
 export default function RidersPage() {
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | 'MOTOGP' | 'MOTO2' | 'MOTO3'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const categoryOptions = [
+    { value: 'ALL', label: 'Tutti', color: '#E60023' },
+    { value: 'MOTOGP', label: 'MotoGP', color: '#E60023' },
+    { value: 'MOTO2', label: 'Moto2', color: '#FF6B00' },
+    { value: 'MOTO3', label: 'Moto3', color: '#2979FF' },
+  ] as const;
 
   const { data: ridersData, isLoading, error } = useQuery<{ riders: Rider[] }>({
     queryKey: queryKeys.riders.all,
@@ -56,37 +64,73 @@ export default function RidersPage() {
         title="Piloti ufficiali"
         subtitle="Filtra per categoria, valuta costo e rendimento, poi entra nel dettaglio pilota."
       />
-      <Paper sx={{ p: 2, mb: 4 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid size={{ xs: 12, md: 6 }}>
-            <TextField
-              fullWidth
-              placeholder="Cerca per nome o team..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search />
-                  </InputAdornment>
-                ),
-              }}
-            />
+      <Paper className="liquid-glass-nav" sx={{ p: { xs: 1.5, sm: 2 }, mb: 3 }}>
+        <Stack spacing={1.5}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+            <Typography variant="subtitle2" fontWeight={900}>
+              Scouting piloti
+            </Typography>
+            <Chip size="small" label={`${filteredRiders.length} risultati`} color="primary" variant="outlined" />
+          </Stack>
+          <Grid container spacing={1.5} alignItems="center">
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                placeholder="Cerca per nome o team..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <ToggleButtonGroup
+                value={selectedCategory}
+                exclusive
+                onChange={(_, newValue) => newValue && setSelectedCategory(newValue)}
+                fullWidth
+                sx={{
+                  gap: 0.75,
+                  '& .MuiToggleButtonGroup-grouped': {
+                    border: '1px solid rgba(255,255,255,0.12) !important',
+                    borderRadius: '12px !important',
+                    color: 'text.secondary',
+                    py: 1,
+                    minWidth: 0,
+                    fontWeight: 900,
+                    letterSpacing: 0.4,
+                    bgcolor: 'rgba(255,255,255,0.035)',
+                  },
+                }}
+              >
+                {categoryOptions.map((option) => (
+                  <ToggleButton
+                    key={option.value}
+                    value={option.value}
+                    sx={{
+                      '&.Mui-selected': {
+                        color: 'white',
+                        borderColor: `${option.color} !important`,
+                        bgcolor: `${option.color}26`,
+                        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.12), 0 0 18px ${option.color}22`,
+                      },
+                      '&.Mui-selected:hover': {
+                        bgcolor: `${option.color}33`,
+                      },
+                    }}
+                  >
+                    {option.label}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+            </Grid>
           </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <ToggleButtonGroup
-              value={selectedCategory}
-              exclusive
-              onChange={(_, newValue) => newValue && setSelectedCategory(newValue)}
-              fullWidth
-            >
-              <ToggleButton value="ALL">Tutti</ToggleButton>
-              <ToggleButton value="MOTOGP">MotoGP</ToggleButton>
-              <ToggleButton value="MOTO2">Moto2</ToggleButton>
-              <ToggleButton value="MOTO3">Moto3</ToggleButton>
-            </ToggleButtonGroup>
-          </Grid>
-        </Grid>
+        </Stack>
       </Paper>
 
       <Grid container spacing={3}>

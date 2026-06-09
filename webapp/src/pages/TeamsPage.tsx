@@ -4,12 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import { getMyTeams, getUpcomingRaces } from '../services/api';
 import { queryKeys } from '../services/queryKeys';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, CircularProgress, Alert, Card, CardContent, 
+import { Box, Typography, CircularProgress, Card, CardContent,
   CardActions, Grid, Button, Chip, Stack, Avatar, List, ListItem, ListItemAvatar, 
   ListItemText, IconButton, Tooltip, Paper, TextField, InputAdornment,
 } from '@mui/material';
 import {
-  EmojiEvents, 
   SportsMotorsports,
   Groups,
   Edit,
@@ -23,6 +22,7 @@ import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { EmptyState } from '../components/ui/EmptyState';
 import { PageHeader } from '../components/ui/PageHeader';
+import { ActionBanner } from '../components/ui/ActionBanner';
 import { getGpDate, getLineupDeadlineDate } from '../utils/raceDates';
 
 interface Team {
@@ -107,46 +107,32 @@ export default function TeamsPage() {
 
       {/* Prossima Gara */}
       {nextRace && (
-        <Paper sx={{ p: 2, mb: 3, bgcolor: 'primary.main', color: 'white' }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2} justifyContent="space-between">
-            <Stack direction="row" alignItems="center" spacing={2}>
-              <CalendarToday />
-              <Box>
-                <Typography variant="h6">
-                  Prossima Gara: {nextRace.name}
-                </Typography>
-                <Typography variant="body2">
-                  {format(getGpDate(nextRace), 'EEEE d MMMM yyyy', { locale: it })}
-                </Typography>
-              </Box>
-            </Stack>
-            {isLocked && (
-               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'error.main', px: 2, py: 0.5, borderRadius: 1 }}>
-                 <Flag fontSize="small" />
-                 <Typography variant="button" fontWeight="bold">
-                   Gara in Corso
-                 </Typography>
-               </Box>
-            )}
-          </Stack>
-        </Paper>
+        <Box sx={{ mb: 3 }}>
+          <ActionBanner
+            tone={isLocked ? 'error' : 'primary'}
+            icon={isLocked ? <Flag /> : <CalendarToday />}
+            title={isLocked ? 'Gara in corso' : 'Prossima gara'}
+            description={`${nextRace.name} - ${format(getGpDate(nextRace), 'EEEE d MMMM yyyy', { locale: it })}`}
+          />
+        </Box>
       )}
 
       {/* Barra di ricerca */}
-      <TextField
-        fullWidth
-        placeholder="Cerca team o lega..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        sx={{ mb: 3 }}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <Search />
-            </InputAdornment>
-          ),
-        }}
-      />
+      <Paper className="liquid-glass-nav" sx={{ p: 1.25, mb: 3 }}>
+        <TextField
+          fullWidth
+          placeholder="Cerca team o lega..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Paper>
 
       {/* Lista Team */}
       {filteredTeams.length === 0 ? (
@@ -161,14 +147,14 @@ export default function TeamsPage() {
         <Grid container spacing={3}>
           {filteredTeams.map((team) => (
             <Grid key={team.id} size={{ xs: 12, md: 6}}>
-              <Card>
-                <CardContent>
+              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <CardContent sx={{ flex: 1 }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={2}>
-                    <Box>
+                    <Box sx={{ minWidth: 0 }}>
                       <Typography variant="h6" gutterBottom>
                         {team.name}
                       </Typography>
-                      <Stack direction="row" spacing={1} alignItems="center">
+                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                         <Chip
                           icon={<Groups />}
                           label={team.league.name}
@@ -207,31 +193,32 @@ export default function TeamsPage() {
                   </Stack>
 
                   {/* Statistiche */}
-                  <Grid container spacing={2} sx={{ mb: 2 }}>
-                    <Grid size={{ xs: 4}}>
-                      <Box textAlign="center">
-                        <Typography variant="h5" color="primary">
-                          {team.totalPoints || 0}
-                        </Typography>
-                        <Typography variant="caption">Punti Totali</Typography>
-                      </Box>
-                    </Grid>
-                    <Grid size={{ xs: 4}}>
-                      <Box textAlign="center">
-                        <Typography variant="h5" color="secondary">
-                          {team.riders.length}
-                        </Typography>
-                        <Typography variant="caption">Piloti</Typography>
-                      </Box>
-                    </Grid>
-                    <Grid size={{ xs: 4}}>
-                      <Box textAlign="center">
-                        <Typography variant="h5" color="success.main">
-                          {team.remainingBudget}
-                        </Typography>
-                        <Typography variant="caption">Crediti</Typography>
-                      </Box>
-                    </Grid>
+                  <Grid container spacing={1.25} sx={{ mb: 2 }}>
+                    {[
+                      { label: 'Punti', value: team.totalPoints || 0, color: 'primary.main' },
+                      { label: 'Piloti', value: team.riders.length, color: 'secondary.main' },
+                      { label: 'Crediti', value: team.remainingBudget, color: 'success.main' },
+                    ].map((stat) => (
+                      <Grid key={stat.label} size={{ xs: 4 }}>
+                        <Box
+                          textAlign="center"
+                          sx={{
+                            p: 1.25,
+                            borderRadius: 2,
+                            border: '1px solid rgba(255,255,255,0.10)',
+                            bgcolor: 'rgba(255,255,255,0.045)',
+                            minHeight: 72,
+                          }}
+                        >
+                          <Typography variant="h6" color={stat.color} sx={{ fontWeight: 900, lineHeight: 1.1 }}>
+                            {stat.value}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800 }}>
+                            {stat.label}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    ))}
                   </Grid>
 
                   {/* Lista Piloti */}
@@ -239,7 +226,7 @@ export default function TeamsPage() {
                     Piloti:
                   </Typography>
                   <List dense disablePadding>
-                    {team.riders
+                    {[...team.riders]
                       .sort((a, b) => {
                         const categoryOrder = { MOTOGP: 0, MOTO2: 1, MOTO3: 2 };
                         return categoryOrder[a.rider.category as keyof typeof categoryOrder] - 
@@ -279,7 +266,19 @@ export default function TeamsPage() {
                   </Button>
                   
                   {isLocked ? (
-                    <Box sx={{ flex: 1, p: 1, bgcolor: 'error.main', color: 'white', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                    <Box sx={{
+                      flex: 1,
+                      p: 1,
+                      color: 'error.main',
+                      borderRadius: 1.5,
+                      border: '1px solid',
+                      borderColor: 'error.main',
+                      bgcolor: 'rgba(255,51,51,0.10)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 1
+                    }}>
                       <Flag fontSize="small" />
                       <Typography variant="button" fontWeight="bold">Gara in Corso</Typography>
                     </Box>
@@ -289,7 +288,7 @@ export default function TeamsPage() {
                       variant="contained"
                       color="primary"
                       startIcon={<SportsMotorsports />}
-                      onClick={() => navigate(`/teams/${team.id}/lineup/${nextRace.id}`)}
+                      onClick={() => nextRace && navigate(`/teams/${team.id}/lineup/${nextRace.id}`)}
                       disabled={!nextRace}
                     >
                       {team.hasLineup ? 'Modifica Formazione' : 'Schiera Formazione'}

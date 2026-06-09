@@ -1092,10 +1092,22 @@ export default function LeagueDetailPage() {
           <Typography variant="body2" gutterBottom>
             Condividi questo codice con i tuoi amici per farli unire alla lega:
           </Typography>
-          <Paper sx={{ p: 3, mt: 2, bgcolor: 'grey.100', textAlign: 'center' }}>
-            <Typography variant="h4" fontFamily="monospace">
-              {league.code}
-            </Typography>
+          <Paper
+            className="liquid-glass"
+            sx={{
+              p: 3,
+              mt: 2,
+              textAlign: 'center',
+              border: '1px solid',
+              borderColor: 'primary.main',
+            }}
+          >
+            <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="center">
+              <ContentCopy color="primary" />
+              <Typography variant="h4" fontFamily="monospace" fontWeight={900}>
+                {league.code}
+              </Typography>
+            </Stack>
           </Paper>
           <Button
             fullWidth
