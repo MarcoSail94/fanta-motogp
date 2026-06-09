@@ -2,7 +2,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getQualifyingResults, getRaceById, getRaceResults, triggerRaceDataRefresh } from '../services/api';
+import { getAllRaces, getQualifyingResults, getRaceById, getRaceResults, triggerRaceDataRefresh } from '../services/api';
 import { queryKeys } from '../services/queryKeys';
 import {
   Alert,
@@ -467,6 +467,12 @@ export default function RaceDetailPage() {
     enabled: !!raceId,
   });
 
+  const { data: seasonRacesData } = useQuery({
+    queryKey: queryKeys.races.all(raceData?.race?.season),
+    queryFn: () => getAllRaces(raceData!.race.season),
+    enabled: !!user?.isAdmin && !!raceData?.race?.season,
+  });
+
   const { data: raceResultsData, isLoading: loadingRaceResults } = useQuery({
     queryKey: queryKeys.races.results(raceId),
     queryFn: () => getRaceResults(raceId!),
@@ -505,6 +511,15 @@ export default function RaceDetailPage() {
     ? loadingPractice
     : loadingRaceResults;
 
+  const latestCompletedRaceId = useMemo(() => {
+    const now = new Date();
+    const completedRaces = seasonRacesData?.races
+      ?.filter((race: any) => getGpDate(race) <= now)
+      .sort((a: any, b: any) => getGpDate(b).getTime() - getGpDate(a).getTime());
+
+    return completedRaces?.[0]?.id || null;
+  }, [seasonRacesData]);
+
   const refreshMutation = useMutation({
     mutationFn: () => triggerRaceDataRefresh(raceId!, {
       recalculateScores,
@@ -540,6 +555,7 @@ export default function RaceDetailPage() {
   const sprintDate = getSprintDate(race);
   const hasSprint = !!sprintDate;
   const weekendStatus = getWeekendStatus(race);
+  const canRefreshRaceData = Boolean(user?.isAdmin && latestCompletedRaceId === race.id);
 
   return (
     <Box className="fade-in" sx={{ pb: 2 }}>
@@ -614,7 +630,7 @@ export default function RaceDetailPage() {
                   sx={{ bgcolor: 'rgba(255,255,255,0.14)', color: 'white' }}
                 />
               )}
-              {user?.isAdmin && (
+              {canRefreshRaceData && (
                 <Button
                   variant="contained"
                   color="secondary"

@@ -239,6 +239,26 @@ export const dispatchRaceRefreshWorkflow = async (req: AuthRequest, res: Respons
       return res.status(404).json({ error: 'Gara non trovata' });
     }
 
+    const latestCompletedRace = await prisma.race.findFirst({
+      where: {
+        gpDate: { lte: new Date() },
+      },
+      orderBy: { gpDate: 'desc' },
+      select: { id: true, name: true },
+    });
+
+    if (!latestCompletedRace) {
+      return res.status(409).json({
+        error: 'Nessuna gara corsa disponibile per il refresh dati.',
+      });
+    }
+
+    if (latestCompletedRace.id !== race.id) {
+      return res.status(409).json({
+        error: `Refresh disponibile solo per l'ultima gara corsa: ${latestCompletedRace.name}.`,
+      });
+    }
+
     const inputs = {
       race_id: race.id,
       recalculate_scores: recalculateScores ? 'true' : 'false',
