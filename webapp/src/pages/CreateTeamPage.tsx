@@ -29,14 +29,20 @@ import {
   AccordionSummary,
   AccordionDetails,
   Checkbox,
+  InputAdornment,
+  Divider,
 } from '@mui/material';
 import {
   ExpandMore,
   Delete,
   CheckCircle,
   Warning,
+  Search,
+  ArrowBack,
 } from '@mui/icons-material';
 import { useNotification } from '../contexts/NotificationContext';
+import { MobileActionBar } from '../components/ui/MobileActionBar';
+import { PageHeader } from '../components/ui/PageHeader';
 
 
 const categoryColors = {
@@ -61,6 +67,7 @@ export default function CreateTeamPage() {
   const [teamName, setTeamName] = useState('');
   const [selectedRiders, setSelectedRiders] = useState<string[]>([]);
   const [expandedCategory, setExpandedCategory] = useState<string | false>('MOTOGP');
+  const [riderSearchQuery, setRiderSearchQuery] = useState('');
 
   const { data: leagueData, isLoading: isLoadingLeague } = useQuery({
     queryKey: queryKeys.leagues.detail(leagueId),
@@ -103,8 +110,14 @@ export default function CreateTeamPage() {
   }, [selectedRidersData]);
 
   const ridersByCategory = useMemo(() => {
+    const normalizedSearch = riderSearchQuery.trim().toLowerCase();
     const grouped = riders.reduce((acc, rider) => {
-      if (rider.riderType === 'OFFICIAL') {
+      const matchesSearch =
+        !normalizedSearch ||
+        rider.name.toLowerCase().includes(normalizedSearch) ||
+        rider.team.toLowerCase().includes(normalizedSearch);
+
+      if (rider.riderType === 'OFFICIAL' && matchesSearch) {
         if (!acc[rider.category]) acc[rider.category] = [];
         acc[rider.category].push(rider);
       }
@@ -116,7 +129,14 @@ export default function CreateTeamPage() {
     });
 
     return grouped;
-  }, [riders]);
+  }, [riders, riderSearchQuery]);
+
+  const selectedByCategory = useMemo(() => {
+    return Object.keys(categoryRequirements).reduce((acc, category) => {
+      acc[category] = selectedRidersData.filter((rider) => rider.category === category);
+      return acc;
+    }, {} as Record<string, Rider[]>);
+  }, [selectedRidersData]);
 
   const categoryStatus = useMemo(() => {
     const status: Record<string, { count: number; isValid: boolean }> = {};
@@ -195,38 +215,147 @@ export default function CreateTeamPage() {
   }
   
   return (
-    <Box>
-      <Typography variant="h4" gutterBottom>
-        Crea il tuo Team
-      </Typography>
-      <Typography variant="body1" color="text.secondary" gutterBottom>
-        Lega: {league.name}
-      </Typography>
+    <Box sx={{ pb: { xs: 12, md: 0 } }}>
+      <PageHeader
+        eyebrow="Mercato"
+        title="Crea il tuo team"
+        subtitle={`Lega: ${league.name}. Scegli 3 piloti per categoria restando nel budget.`}
+        actions={
+          <Button variant="outlined" startIcon={<ArrowBack />} onClick={() => navigate(-1)}>
+            Torna
+          </Button>
+        }
+      />
 
       <Grid container spacing={3}>
         {/* Colonna sinistra: Form */}
         <Grid size={{ xs: 12, md: 8}}>
           <Card sx={{ mb: 3 }}>
             <CardContent>
-              <TextField
-                fullWidth
-                label="Nome del Team"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                margin="normal"
-                error={teamName.length > 0 && teamName.length < 3}
-                helperText={
-                  teamName.length > 0 && teamName.length < 3
-                    ? 'Il nome deve essere almeno 3 caratteri'
-                    : ''
-                }
-              />
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Nome del team"
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    error={teamName.length > 0 && teamName.length < 3}
+                    helperText={
+                      teamName.length > 0 && teamName.length < 3
+                        ? 'Il nome deve essere almeno 3 caratteri'
+                        : ' '
+                    }
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Cerca pilota o team"
+                    value={riderSearchQuery}
+                    onChange={(e) => setRiderSearchQuery(e.target.value)}
+                    helperText="Filtra il mercato senza perdere le selezioni"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Search />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+                <Box>
+                  <Typography variant="h6" fontWeight={900}>
+                    Composizione
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Ogni slot pieno e un passo verso la griglia completa.
+                  </Typography>
+                </Box>
+                <Chip
+                  label={`${selectedRiders.length}/9`}
+                  color={selectedRiders.length === 9 ? 'success' : 'default'}
+                  sx={{ fontWeight: 900 }}
+                />
+              </Stack>
+
+              <Grid container spacing={2}>
+                {Object.entries(categoryRequirements).map(([category, req]) => (
+                  <Grid key={category} size={{ xs: 12, sm: 4 }}>
+                    <Box
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 2,
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        bgcolor: 'background.default',
+                      }}
+                    >
+                      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                        <Typography fontWeight={900} color={categoryColors[category as keyof typeof categoryColors]}>
+                          {req.label}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {selectedByCategory[category]?.length || 0}/{req.max}
+                        </Typography>
+                      </Stack>
+                      <Stack spacing={0.75}>
+                        {Array.from({ length: req.max }).map((_, index) => {
+                          const rider = selectedByCategory[category]?.[index];
+                          return (
+                            <Box
+                              key={`${category}-${index}`}
+                              sx={{
+                                minHeight: 38,
+                                borderRadius: 1.5,
+                                border: '1px dashed',
+                                borderColor: rider ? categoryColors[category as keyof typeof categoryColors] : 'rgba(255,255,255,0.14)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                px: 1,
+                                gap: 1,
+                              }}
+                            >
+                              {rider ? (
+                                <>
+                                  <Avatar
+                                    sx={{
+                                      width: 24,
+                                      height: 24,
+                                      fontSize: '0.72rem',
+                                      bgcolor: categoryColors[category as keyof typeof categoryColors],
+                                    }}
+                                  >
+                                    {rider.number}
+                                  </Avatar>
+                                  <Typography variant="caption" fontWeight={800} noWrap>
+                                    {rider.name}
+                                  </Typography>
+                                </>
+                              ) : (
+                                <Typography variant="caption" color="text.secondary">
+                                  Slot libero
+                                </Typography>
+                              )}
+                            </Box>
+                          );
+                        })}
+                      </Stack>
+                    </Box>
+                  </Grid>
+                ))}
+              </Grid>
             </CardContent>
           </Card>
 
           {/* Selezione Piloti */}
-          {Object.entries(ridersByCategory).map(([category, categoryRiders]) => {
-            const req = categoryRequirements[category as keyof typeof categoryRequirements];
+          {Object.entries(categoryRequirements).map(([category, req]) => {
+            const categoryRiders = ridersByCategory[category] || [];
             const status = categoryStatus[category];
 
             return (
@@ -257,6 +386,11 @@ export default function CreateTeamPage() {
                   </Stack>
                 </AccordionSummary>
                 <AccordionDetails>
+                  {categoryRiders.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                      Nessun pilota trovato per questa categoria.
+                    </Typography>
+                  ) : (
                   <List dense>
                     {categoryRiders.map(rider => {
                       const isSelected = selectedRiders.includes(rider.id);
@@ -284,7 +418,9 @@ export default function CreateTeamPage() {
                             selected={isSelected}
                           >
                             <ListItemAvatar>
-                              <Avatar sx={{ bgcolor: 'grey.300' }}>{rider.number}</Avatar>
+                              <Avatar sx={{ bgcolor: categoryColors[category as keyof typeof categoryColors] }}>
+                                {rider.number}
+                              </Avatar>
                             </ListItemAvatar>
                             <ListItemText
                               primary={rider.name}
@@ -311,6 +447,7 @@ export default function CreateTeamPage() {
                       );
                     })}
                   </List>
+                  )}
                 </AccordionDetails>
               </Accordion>
             );
@@ -319,7 +456,7 @@ export default function CreateTeamPage() {
 
         {/* Colonna destra: Riepilogo */}
         <Grid size={{ xs: 12, md: 4}}>
-          <Card sx={{ position: 'sticky', top: 16 }}>
+          <Card sx={{ position: { md: 'sticky' }, top: 16 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 Riepilogo Team
@@ -393,13 +530,14 @@ export default function CreateTeamPage() {
                 )}
               </List>
 
+              <Divider sx={{ mt: 2 }} />
               <Button
                 fullWidth
                 variant="contained"
                 size="large"
                 onClick={handleCreateTeam}
                 disabled={!isTeamValid || isCreatingTeam}
-                sx={{ mt: 3 }}
+                sx={{ mt: 3, display: { xs: 'none', md: 'inline-flex' } }}
               >
                 {isCreatingTeam ? 'Creazione in corso...' : 'Crea Team'}
               </Button>
@@ -407,6 +545,17 @@ export default function CreateTeamPage() {
           </Card>
         </Grid>
       </Grid>
+
+      <MobileActionBar
+        label="Team"
+        value={`${selectedRiders.length}/9 piloti`}
+        helper={`${Math.max(0, (league?.budget || 0) - totalCost)} crediti rimasti`}
+        actionLabel="Crea"
+        loadingLabel="Creazione..."
+        onAction={handleCreateTeam}
+        disabled={!isTeamValid || isCreatingTeam}
+        loading={isCreatingTeam}
+      />
     </Box>
   );
 }

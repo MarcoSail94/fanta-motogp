@@ -10,6 +10,8 @@ import {
   Chip, Stack, Card, CardActionArea, Skeleton, Tooltip
 } from '@mui/material';
 import { CheckCircle, Save } from '@mui/icons-material';
+import { MobileActionBar } from '../components/ui/MobileActionBar';
+import { PageHeader } from '../components/ui/PageHeader';
 
 // Helper per categoria
 const CATEGORIES = ['MOTOGP', 'MOTO2', 'MOTO3'];
@@ -179,9 +181,25 @@ export default function LineupPage() {
     );
   };
 
+  const handleSaveLineup = () => {
+    saveMutation.mutate({
+      teamId,
+      riders: Object.keys(selection).filter(k => selection[k].selected).map(k => ({
+        riderId: k,
+        predictedPosition: parseInt(selection[k].pos),
+      })),
+    });
+  };
+
   
   return (
-    <Box className="fade-in">
+    <Box className="fade-in" sx={{ pb: { xs: 12, md: 0 } }}>
+      <PageHeader
+        eyebrow="Lineup"
+        title="Schiera formazione"
+        subtitle={`${team?.name} - ${raceData?.race?.name}`}
+      />
+
       {/* Header Sticky */}
       <Paper sx={{ 
         p: 2, mb: 3, position: 'sticky', top: 10, zIndex: 100, 
@@ -202,6 +220,17 @@ export default function LineupPage() {
                 variant="outlined"
              />
            </Stack>
+           <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+             {CATEGORIES.map((cat) => (
+               <Chip
+                 key={cat}
+                 size="small"
+                 label={`${cat} ${stats.counts[cat as keyof typeof stats.counts]}/2`}
+                 color={stats.counts[cat as keyof typeof stats.counts] === 2 ? 'success' : 'default'}
+                 variant="outlined"
+               />
+             ))}
+           </Stack>
            {stats.errors.length > 0 && (
                <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
                   {stats.errors[0]} {stats.errors.length > 1 && `(+${stats.errors.length - 1} altri)`}
@@ -212,12 +241,8 @@ export default function LineupPage() {
           variant="contained" 
           startIcon={<Save />} 
           disabled={!stats.valid || saveMutation.isPending}
-          onClick={() => saveMutation.mutate({
-             teamId, 
-             riders: Object.keys(selection).filter(k => selection[k].selected).map(k => ({
-               riderId: k, predictedPosition: parseInt(selection[k].pos)
-             }))
-          })}
+          onClick={handleSaveLineup}
+          sx={{ display: { xs: 'none', md: 'inline-flex' } }}
         >
           Salva
         </Button>
@@ -305,6 +330,17 @@ export default function LineupPage() {
           );
         })}
       </Grid>
+
+      <MobileActionBar
+        label="Lineup"
+        value={`${stats.counts.total}/6 piloti`}
+        helper={stats.errors[0] || 'Pronta per il salvataggio'}
+        actionLabel="Salva"
+        loadingLabel="Salvataggio..."
+        onAction={handleSaveLineup}
+        disabled={!stats.valid || saveMutation.isPending}
+        loading={saveMutation.isPending}
+      />
     </Box>
   );
 }

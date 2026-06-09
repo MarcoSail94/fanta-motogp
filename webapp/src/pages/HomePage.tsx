@@ -1,370 +1,454 @@
 // webapp/src/pages/HomePage.tsx
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getMyLeagues, getMyTeams, getUpcomingRaces, getLatestRaceScoresStatus } from '../services/api';
+import { getLatestRaceScoresStatus, getMyLeagues, getMyTeams, getUpcomingRaces } from '../services/api';
 import { queryKeys } from '../services/queryKeys';
 import {
-  Box, Typography, Grid, Paper, Button, Stack, Chip, Skeleton, Avatar, useTheme
+  Avatar,
+  Box,
+  Button,
+  Chip,
+  Grid,
+  Paper,
+  Skeleton,
+  Stack,
+  Typography,
 } from '@mui/material';
 import {
-  SportsScore, ArrowForward, EmojiEvents, AccessTime, Flag, Assessment
+  AccessTime,
+  Add,
+  ArrowForward,
+  Assessment,
+  EmojiEvents,
+  Flag,
+  Groups,
+  SportsMotorsports,
+  SportsScore,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { differenceInDays, differenceInHours, differenceInMinutes } from 'date-fns';
+import { ActionBanner } from '../components/ui/ActionBanner';
+import { EmptyState } from '../components/ui/EmptyState';
+import { MetricTile } from '../components/ui/MetricTile';
+import { PageHeader } from '../components/ui/PageHeader';
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const theme = useTheme();
 
-  const { data: racesData, isLoading: loadingRaces } = useQuery({ queryKey: queryKeys.races.upcoming, queryFn: getUpcomingRaces });
-  const { data: scoresStatus } = useQuery({ queryKey: queryKeys.races.latestScoresStatus, queryFn: getLatestRaceScoresStatus });
-  
-  const { data: leaguesData, isLoading: loadingLeagues } = useQuery({ queryKey: queryKeys.leagues.mine, queryFn: getMyLeagues });
-  const { data: teamsData, isLoading: loadingTeams } = useQuery({ queryKey: queryKeys.teams.mine, queryFn: getMyTeams });
+  const { data: racesData, isLoading: loadingRaces } = useQuery({
+    queryKey: queryKeys.races.upcoming,
+    queryFn: getUpcomingRaces,
+  });
+  const { data: scoresStatus } = useQuery({
+    queryKey: queryKeys.races.latestScoresStatus,
+    queryFn: getLatestRaceScoresStatus,
+  });
+  const { data: leaguesData, isLoading: loadingLeagues } = useQuery({
+    queryKey: queryKeys.leagues.mine,
+    queryFn: getMyLeagues,
+  });
+  const { data: teamsData, isLoading: loadingTeams } = useQuery({
+    queryKey: queryKeys.teams.mine,
+    queryFn: getMyTeams,
+  });
 
   const nextRace = racesData?.races?.[0];
   const leagues = leaguesData?.leagues || [];
   const teams = teamsData?.teams || [];
-  
   const isLoading = loadingRaces || loadingLeagues || loadingTeams;
 
-  // Calcolo della scadenza e dello stato "In Corso"
   const targetDate = nextRace ? new Date(nextRace.sprintDate || nextRace.gpDate) : null;
   const isLocked = targetDate ? new Date() >= targetDate : false;
+  const teamNeedingLineup = useMemo(
+    () => teams.find((team: any) => !team.hasLineup),
+    [teams]
+  );
+  const primaryTeam = teamNeedingLineup || teams[0];
 
-  // Countdown Timer Logic
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0 });
 
   useEffect(() => {
     if (!targetDate || isLocked) return;
-    
-    const timer = setInterval(() => {
+
+    const updateCountdown = () => {
       const now = new Date();
-      // Ricalcola se è diventato bloccato in questo esatto momento
       if (now >= targetDate) {
         setTimeLeft({ days: 0, hours: 0, minutes: 0 });
-        clearInterval(timer);
         return;
       }
-      
-      const days = differenceInDays(targetDate, now);
-      const hours = differenceInHours(targetDate, now) % 24;
-      const minutes = differenceInMinutes(targetDate, now) % 60;
-      setTimeLeft({ days, hours, minutes });
-    }, 60000); // Update ogni minuto
-    
-    // Init immediato
-    const now = new Date();
-    if (now < targetDate) {
+
       setTimeLeft({
         days: differenceInDays(targetDate, now),
         hours: differenceInHours(targetDate, now) % 24,
-        minutes: differenceInMinutes(targetDate, now) % 60
+        minutes: differenceInMinutes(targetDate, now) % 60,
       });
-    }
+    };
 
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 60000);
     return () => clearInterval(timer);
   }, [targetDate, isLocked]);
 
   if (isLoading) {
     return (
       <Grid container spacing={3}>
-        <Grid size={{ xs: 12 }}><Skeleton variant="rectangular" height={300} sx={{ borderRadius: 4 }} /></Grid>
-        <Grid size={{ xs: 12, md: 6 }}><Skeleton variant="rectangular" height={200} sx={{ borderRadius: 4 }} /></Grid>
-        <Grid size={{ xs: 12, md: 6 }}><Skeleton variant="rectangular" height={200} sx={{ borderRadius: 4 }} /></Grid>
+        <Grid size={{ xs: 12 }}>
+          <Skeleton variant="rectangular" height={230} sx={{ borderRadius: 3 }} />
+        </Grid>
+        {[1, 2, 3, 4].map((item) => (
+          <Grid key={item} size={{ xs: 12, sm: 6, md: 3 }}>
+            <Skeleton variant="rectangular" height={110} sx={{ borderRadius: 2 }} />
+          </Grid>
+        ))}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Skeleton variant="rectangular" height={260} sx={{ borderRadius: 3 }} />
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Skeleton variant="rectangular" height={260} sx={{ borderRadius: 3 }} />
+        </Grid>
       </Grid>
     );
   }
 
+  const handlePrimaryAction = () => {
+    if (nextRace && primaryTeam && !isLocked) {
+      navigate(`/teams/${primaryTeam.id}/lineup/${nextRace.id}`);
+      return;
+    }
+
+    if (nextRace) {
+      navigate(`/races/${nextRace.id}`);
+      return;
+    }
+
+    navigate('/calendar');
+  };
+
   return (
     <Box className="fade-in">
+      <PageHeader
+        eyebrow="Race control"
+        title="Dashboard"
+        subtitle="Tieni sotto controllo prossima gara, formazioni e stato delle tue leghe."
+        actions={
+          <Button variant="outlined" startIcon={<Add />} onClick={() => navigate('/leagues')}>
+            Leghe
+          </Button>
+        }
+      />
 
-      {/* Banner Punteggi Calcolati Disponibili */}
-      {scoresStatus?.hasNewScores && (
-        <Paper
-          sx={{
-            p: { xs: 2, sm: 3 },
-            mb: 3,
-            borderRadius: 3,
-            background: `linear-gradient(135deg, ${theme.palette.success.dark} 0%, #1A2E1A 100%)`,
-            border: `1px solid ${theme.palette.success.main}55`,
-            display: 'flex',
-            flexDirection: { xs: 'column', sm: 'row' },
-            justifyContent: 'space-between',
-            alignItems: { xs: 'flex-start', sm: 'center' },
-            gap: 2,
-            boxShadow: `0 8px 32px ${theme.palette.success.main}22`,
-          }}
-        >
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Avatar sx={{ bgcolor: 'success.main', width: 48, height: 48 }}>
-              <Assessment fontSize="medium" sx={{ color: 'white' }} />
-            </Avatar>
-            <Box>
-              <Typography variant="h6" fontWeight="bold" color="white" lineHeight={1.2}>
-                Fanta Punteggi Aggiornati!
-              </Typography>
-              <Typography variant="body2" color="success.light" sx={{ mt: 0.5 }}>
-                I punteggi del <strong>{scoresStatus.lastRaceName}</strong> sono stati appena calcolati per i tuoi team.
-              </Typography>
-            </Box>
-          </Stack>
-          <Button
-            variant="contained"
-            color="success"
-            endIcon={<ArrowForward />}
-            onClick={() => {
+      <Stack spacing={2.5}>
+        {scoresStatus?.hasNewScores && (
+          <ActionBanner
+            tone="success"
+            icon={<Assessment />}
+            title="Fanta punteggi aggiornati"
+            description={
+              <>
+                I punteggi del <strong>{scoresStatus.lastRaceName}</strong> sono disponibili.
+              </>
+            }
+            actionLabel={leagues.length === 1 ? 'Vedi classifica' : 'Vedi team'}
+            onAction={() => {
               if (leagues.length === 1) {
                 navigate(`/leagues/${leagues[0].id}`);
               } else {
                 navigate('/teams');
               }
-            }} 
-            sx={{ fontWeight: 'bold', width: { xs: '100%', sm: 'auto' } }}
-          >
-            {leagues.length === 1 ? 'Vedi Classifica' : 'Vedi Punteggi Team'}
-          </Button>
-        </Paper>
-      )}
+            }}
+          />
+        )}
 
-      {/* Hero Section con Animazione e Texture */}
-      <Paper
-        sx={{
-          p: 4,
-          mb: 4,
-          borderRadius: 4,
-          background: `
-            linear-gradient(135deg, ${theme.palette.primary.dark}cc 0%, #000000cc 100%),
-            url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")
-          `,
-          color: 'white',
-          position: 'relative',
-          overflow: 'hidden',
-          border: '1px solid rgba(255,255,255,0.1)',
-          minHeight: 300,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          animation: 'pulse 3s infinite ease-in-out',
-          '@keyframes pulse': {
-            '0%': { boxShadow: '0 0 40px rgba(230, 0, 35, 0.2)' },
-            '50%': { boxShadow: '0 0 70px rgba(230, 0, 35, 0.5)' },
-            '100%': { boxShadow: '0 0 40px rgba(230, 0, 35, 0.2)' },
-          }
-        }}
-      >
-        <Box sx={{
-          position: 'absolute', right: -50, top: -50, opacity: 0.1,
-          transform: 'rotate(15deg)'
-        }}>
-          <SportsScore sx={{ fontSize: 400 }} />
-        </Box>
+        <Paper
+          sx={{
+            p: { xs: 2.5, md: 3 },
+            overflow: 'hidden',
+            position: 'relative',
+            border: '1px solid rgba(230,0,35,0.28)',
+            background: (theme) => `
+              linear-gradient(135deg, ${theme.palette.primary.dark}66 0%, rgba(15,15,19,0.96) 58%),
+              radial-gradient(circle at 92% 12%, rgba(255,107,0,0.18), transparent 28%)
+            `,
+          }}
+        >
+          <SportsScore
+            sx={{
+              position: 'absolute',
+              right: { xs: -54, md: -24 },
+              top: { xs: -38, md: -64 },
+              fontSize: { xs: 210, md: 320 },
+              opacity: 0.08,
+              transform: 'rotate(12deg)',
+            }}
+          />
 
-        <Grid container alignItems="center" spacing={4}>
-          <Grid size={{ xs: 12, md: 7 }}>
-            <Chip 
-              label={nextRace ? `ROUND ${nextRace.round}` : "STAGIONE 2024"} 
-              color="secondary" 
-              size="small" 
-              sx={{ mb: 2, fontWeight: 'bold' }} 
-            />
-            <Typography variant="h2" sx={{ 
-              fontWeight: 900, 
-              textTransform: 'uppercase', 
-              mb: 1, 
-              fontSize: { xs: '2rem', md: '3.5rem' },
-              lineHeight: 1,
-              fontStyle: 'italic',
-              background: 'linear-gradient(45deg, #FFFFFF 30%, #E60023 90%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              filter: 'drop-shadow(0 2px 10px rgba(230,0,35,0.3))'
-            }}>
-              {nextRace ? nextRace.name : "Prossimamente"}
-            </Typography>
-            <Typography variant="h5" sx={{ opacity: 0.8, mb: 4, fontWeight: 300 }}>
-              {nextRace ? `${nextRace.circuit}, ${nextRace.country}` : "Resta sintonizzato per la prossima stagione"}
-            </Typography>
-            
-            {nextRace && (
-              <Button 
-                variant="contained" 
-                size="large" 
-                endIcon={<ArrowForward />}
-                onClick={() => navigate(`/races/${nextRace.id}`)}
-                sx={{ px: 4, py: 1.5, fontSize: '1.1rem' }}
+          <Grid container spacing={3} alignItems="center" sx={{ position: 'relative' }}>
+            <Grid size={{ xs: 12, md: 7 }}>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
+                <Chip
+                  label={nextRace ? `Round ${nextRace.round}` : `Stagione ${new Date().getFullYear()}`}
+                  color="secondary"
+                  size="small"
+                />
+                {teamNeedingLineup && nextRace && !isLocked && (
+                  <Chip label="Lineup da completare" color="warning" size="small" />
+                )}
+                {isLocked && <Chip label="Formazioni bloccate" color="error" size="small" />}
+              </Stack>
+
+              <Typography
+                variant="h3"
+                sx={{
+                  fontWeight: 900,
+                  textTransform: 'uppercase',
+                  lineHeight: 1,
+                  fontSize: { xs: '2rem', md: '3.25rem' },
+                }}
               >
-                Vai alla Gara
-              </Button>
-            )}
-          </Grid>
-          
-          <Grid size={{ xs: 12, md: 5 }}>
-            {nextRace && (
-              <Box sx={{ 
-                bgcolor: 'rgba(255,255,255,0.05)', 
-                backdropFilter: 'blur(10px)', 
-                p: 3, 
-                borderRadius: 3,
-                border: isLocked ? '1px solid rgba(230,0,35,0.5)' : '1px solid rgba(255,255,255,0.1)',
-                textAlign: 'center'
-              }}>
-                <Stack direction="row" alignItems="center" justifyContent="center" spacing={1} mb={2}>
-                   <AccessTime fontSize="small" color={isLocked ? "error" : "primary"} />
-                   <Typography variant="overline" color={isLocked ? "error.main" : "text.secondary"} fontWeight="bold">
-                     {isLocked ? "SCADENZA TERMINATA" : "SCADENZA FORMAZIONE"}
-                   </Typography>
+                {nextRace ? nextRace.name : 'Calendario in arrivo'}
+              </Typography>
+              <Typography color="text.secondary" sx={{ mt: 1, mb: 3, fontSize: { md: '1.05rem' } }}>
+                {nextRace
+                  ? `${nextRace.circuit}, ${nextRace.country}`
+                  : 'Appena la stagione sara disponibile, la prossima azione comparira qui.'}
+              </Typography>
+
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  endIcon={<ArrowForward />}
+                  onClick={handlePrimaryAction}
+                >
+                  {nextRace && primaryTeam && !isLocked
+                    ? teamNeedingLineup
+                      ? 'Schiera formazione'
+                      : 'Aggiorna formazione'
+                    : 'Vai alla gara'}
+                </Button>
+                <Button variant="outlined" size="large" onClick={() => navigate('/teams')}>
+                  I miei team
+                </Button>
+              </Stack>
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 5 }}>
+              <Paper
+                sx={{
+                  p: 2.5,
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  backgroundColor: 'rgba(15,15,19,0.56)',
+                }}
+              >
+                <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ mb: 2 }}>
+                  <AccessTime fontSize="small" color={isLocked ? 'error' : 'primary'} />
+                  <Typography variant="overline" color={isLocked ? 'error.main' : 'text.secondary'} fontWeight={900}>
+                    {isLocked ? 'Gara in corso' : 'Deadline formazione'}
+                  </Typography>
                 </Stack>
-                
+
                 {isLocked ? (
-                  <Box py={2}>
-                    <Typography variant="h5" fontWeight="900" color="error.main" sx={{ fontStyle: 'italic', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                      <Flag /> GARA IN CORSO
+                  <Stack spacing={1} alignItems="center" sx={{ py: 1.5 }}>
+                    <Flag color="error" />
+                    <Typography variant="h5" color="error.main" fontWeight={900}>
+                      Formazioni bloccate
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">Formazioni bloccate</Typography>
-                  </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Segui la gara e attendi il calcolo dei punteggi.
+                    </Typography>
+                  </Stack>
                 ) : (
-                  <Stack direction="row" justifyContent="center" spacing={2} divider={<Typography variant="h4" sx={{opacity: 0.3}}>:</Typography>}>
-                    <Box>
-                      <Typography variant="h3" fontWeight="bold" color="white">{Math.max(0, timeLeft.days)}</Typography>
+                  <Stack
+                    direction="row"
+                    justifyContent="center"
+                    spacing={2}
+                    divider={<Typography variant="h4" sx={{ opacity: 0.24 }}>:</Typography>}
+                  >
+                    <Box textAlign="center">
+                      <Typography variant="h3" fontWeight={900}>{Math.max(0, timeLeft.days)}</Typography>
                       <Typography variant="caption" color="text.secondary">GIORNI</Typography>
                     </Box>
-                    <Box>
-                      <Typography variant="h3" fontWeight="bold" color="white">{Math.max(0, timeLeft.hours)}</Typography>
+                    <Box textAlign="center">
+                      <Typography variant="h3" fontWeight={900}>{Math.max(0, timeLeft.hours)}</Typography>
                       <Typography variant="caption" color="text.secondary">ORE</Typography>
                     </Box>
-                    <Box>
-                      <Typography variant="h3" fontWeight="bold" color="primary.main">{Math.max(0, timeLeft.minutes)}</Typography>
+                    <Box textAlign="center">
+                      <Typography variant="h3" color="primary.main" fontWeight={900}>
+                        {Math.max(0, timeLeft.minutes)}
+                      </Typography>
                       <Typography variant="caption" color="text.secondary">MIN</Typography>
                     </Box>
                   </Stack>
                 )}
-              </Box>
-            )}
+              </Paper>
+            </Grid>
+          </Grid>
+        </Paper>
+
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 6, md: 3 }}>
+            <MetricTile label="Leghe" value={leagues.length} helper="attive" icon={<Groups />} />
+          </Grid>
+          <Grid size={{ xs: 6, md: 3 }}>
+            <MetricTile label="Team" value={teams.length} helper="gestiti" icon={<SportsMotorsports />} tone="secondary" />
+          </Grid>
+          <Grid size={{ xs: 6, md: 3 }}>
+            <MetricTile
+              label="Lineup"
+              value={nextRace ? teams.filter((team: any) => team.hasLineup).length : '-'}
+              helper={nextRace ? `su ${teams.length} per il round` : 'nessuna gara'}
+              icon={<SportsScore />}
+              tone={teamNeedingLineup ? 'warning' : 'success'}
+            />
+          </Grid>
+          <Grid size={{ xs: 6, md: 3 }}>
+            <MetricTile
+              label="Miglior piazza"
+              value={
+                leagues
+                  .map((league: any) => league.userPosition)
+                  .filter(Boolean)
+                  .sort((a: number, b: number) => a - b)[0] || '-'
+              }
+              helper="posizione lega"
+              icon={<EmojiEvents />}
+              tone="warning"
+            />
           </Grid>
         </Grid>
-      </Paper>
 
-      <Grid container spacing={3}>
-        {/* Widget 1: Classifica Rapida */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Paper sx={{ p: 3, height: '100%' }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-               <Typography variant="h6" fontWeight="bold">Le Mie Leghe</Typography>
-               <Button size="small" onClick={() => navigate('/leagues')}>Vedi Tutte</Button>
-            </Box>
-            
-            <Stack spacing={2}>
-              {leagues.length > 0 ? leagues.slice(0, 3).map((league: any) => (
-                <Box 
-                  key={league.id} 
-                  onClick={() => navigate(`/leagues/${league.id}`)}
-                  sx={{ 
-                    p: 2, 
-                    borderRadius: 2, 
-                    bgcolor: 'background.default', 
-                    cursor: 'pointer',
-                    display: 'flex', 
-                    alignItems: 'center',
-                    transition: 'all 0.2s',
-                    '&:hover': { bgcolor: 'action.hover', transform: 'translateX(5px)' }
-                  }}
-                >
-                  <Avatar variant="rounded" sx={{ bgcolor: 'primary.main', mr: 2, fontWeight: 'bold' }}>
-                    {league.name.charAt(0)}
-                  </Avatar>
-                  <Box flexGrow={1}>
-                    <Typography fontWeight="bold">{league.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {league.currentTeams}/{league.maxTeams} Partecipanti
-                    </Typography>
-                  </Box>
-                  {league.userPosition && (
-                    <Chip 
-                      icon={<EmojiEvents sx={{ fontSize: 16 }} />} 
-                      label={`${league.userPosition}°`} 
-                      color={league.userPosition <= 3 ? "warning" : "default"} 
-                      size="small" 
-                    />
-                  )}
-                </Box>
-              )) : (
-                <Typography color="text.secondary" align="center">Non sei in nessuna lega.</Typography>
+        <Grid container spacing={3}>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Paper sx={{ p: 2.5, height: '100%' }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                <Typography variant="h6" fontWeight={900}>Le mie leghe</Typography>
+                <Button size="small" onClick={() => navigate('/leagues')}>Vedi tutte</Button>
+              </Stack>
+
+              {leagues.length > 0 ? (
+                <Stack spacing={1.5}>
+                  {leagues.slice(0, 4).map((league: any) => (
+                    <Box
+                      key={league.id}
+                      onClick={() => navigate(`/leagues/${league.id}`)}
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 2,
+                        bgcolor: 'background.default',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        transition: 'border-color 0.2s ease, transform 0.2s ease',
+                        '&:hover': { borderColor: 'primary.main', transform: 'translateX(4px)' },
+                      }}
+                    >
+                      <Avatar variant="rounded" sx={{ bgcolor: 'primary.main', fontWeight: 900 }}>
+                        {league.name.charAt(0)}
+                      </Avatar>
+                      <Box flexGrow={1} minWidth={0}>
+                        <Typography fontWeight={800} noWrap>{league.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {league.currentTeams}/{league.maxTeams} partecipanti
+                        </Typography>
+                      </Box>
+                      {league.userPosition && (
+                        <Chip
+                          icon={<EmojiEvents sx={{ fontSize: 16 }} />}
+                          label={`${league.userPosition}`}
+                          color={league.userPosition <= 3 ? 'warning' : 'default'}
+                          size="small"
+                        />
+                      )}
+                    </Box>
+                  ))}
+                </Stack>
+              ) : (
+                <EmptyState
+                  icon={<Groups sx={{ fontSize: 52 }} />}
+                  title="Non sei ancora in nessuna lega"
+                  description="Crea una lega o entra con un codice per iniziare il campionato."
+                  actionLabel="Esplora leghe"
+                  onAction={() => navigate('/leagues')}
+                />
               )}
-            </Stack>
-          </Paper>
-        </Grid>
+            </Paper>
+          </Grid>
 
-        {/* Widget 2: Stato Team */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Paper sx={{ p: 3, height: '100%' }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-               <Typography variant="h6" fontWeight="bold">I Miei Team</Typography>
-               <Button size="small" onClick={() => navigate('/teams')}>Gestisci</Button>
-            </Box>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Paper sx={{ p: 2.5, height: '100%' }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                <Typography variant="h6" fontWeight={900}>Stato team</Typography>
+                <Button size="small" onClick={() => navigate('/teams')}>Gestisci</Button>
+              </Stack>
 
-            <Grid container spacing={2}>
-              {teams.slice(0, 2).map((team: any) => (
-                <Grid size={{ xs: 12 }} key={team.id}>
-                  <Box sx={{ 
-                      p: 2, 
-                      border: '1px solid',
-                      borderColor: (!team.hasLineup && nextRace && !isLocked) ? 'warning.main' : 'rgba(255,255,255,0.1)',
-                      borderRadius: 2,
-                      position: 'relative',
-                      overflow: 'hidden',
-                      bgcolor: 'background.default'
-                    }}
-                  >
-                     {!team.hasLineup && nextRace && !isLocked && (
-                       <Box sx={{ 
-                         position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, bgcolor: 'warning.main' 
-                       }} />
-                     )}
-                     
-                     <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Box>
-                           <Typography fontWeight="bold">{team.name}</Typography>
-                           <Typography variant="caption" color="text.secondary">{team.league.name}</Typography>
-                        </Box>
-                        <Box textAlign="right">
-                          <Typography variant="h5" color="primary.main" fontWeight="bold">
-                            {team.totalPoints || 0}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">Punti Totali</Typography>
-                        </Box>
-                     </Stack>
-                     
-                     <Box mt={2} display="flex" justifyContent="flex-end">
-                        {nextRace && (
-                          isLocked ? (
-                            <Chip 
-                              icon={<Flag />} 
-                              label="In Corso" 
-                              color="error" 
-                              variant="outlined" 
-                              size="small" 
-                              sx={{ fontWeight: 'bold' }}
-                            />
-                          ) : (
-                            <Button 
-                              size="small" 
-                              variant={!team.hasLineup ? "contained" : "outlined"}
-                              color={!team.hasLineup ? "warning" : "primary"}
+              {teams.length > 0 ? (
+                <Stack spacing={1.5}>
+                  {teams.slice(0, 3).map((team: any) => {
+                    const needsLineup = !team.hasLineup && nextRace && !isLocked;
+
+                    return (
+                      <Box
+                        key={team.id}
+                        sx={{
+                          p: 1.5,
+                          border: '1px solid',
+                          borderColor: needsLineup ? 'warning.main' : 'rgba(255,255,255,0.08)',
+                          borderRadius: 2,
+                          bgcolor: 'background.default',
+                        }}
+                      >
+                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+                          <Box minWidth={0}>
+                            <Typography fontWeight={800} noWrap>{team.name}</Typography>
+                            <Typography variant="caption" color="text.secondary" noWrap>
+                              {team.league.name}
+                            </Typography>
+                          </Box>
+                          <Box textAlign="right">
+                            <Typography variant="h6" color="primary.main" fontWeight={900}>
+                              {team.totalPoints || 0}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">punti</Typography>
+                          </Box>
+                        </Stack>
+
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1.5 }}>
+                          <Chip
+                            size="small"
+                            color={needsLineup ? 'warning' : 'success'}
+                            variant={needsLineup ? 'filled' : 'outlined'}
+                            label={needsLineup ? 'Lineup mancante' : 'Lineup ok'}
+                          />
+                          {nextRace && !isLocked && (
+                            <Button
+                              size="small"
+                              variant={needsLineup ? 'contained' : 'outlined'}
+                              color={needsLineup ? 'warning' : 'primary'}
                               onClick={() => navigate(`/teams/${team.id}/lineup/${nextRace.id}`)}
                             >
-                              {!team.hasLineup ? "Schiera Formazione" : "Modifica"}
+                              {needsLineup ? 'Schiera' : 'Modifica'}
                             </Button>
-                          )
-                        )}
-                     </Box>
-                  </Box>
-                </Grid>
-              ))}
-            </Grid>
-          </Paper>
+                          )}
+                        </Stack>
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              ) : (
+                <EmptyState
+                  icon={<SportsMotorsports sx={{ fontSize: 52 }} />}
+                  title="Nessun team"
+                  description="Unisciti a una lega e crea il tuo primo team."
+                  actionLabel="Trova una lega"
+                  onAction={() => navigate('/leagues')}
+                />
+              )}
+            </Paper>
+          </Grid>
         </Grid>
-      </Grid>
+      </Stack>
     </Box>
   );
 }

@@ -21,6 +21,8 @@ import {
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
+import { EmptyState } from '../components/ui/EmptyState';
+import { PageHeader } from '../components/ui/PageHeader';
 
 interface Team {
   id: string;
@@ -96,14 +98,11 @@ export default function TeamsPage() {
 
   return (
     <Box>
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          I Miei Team
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Gestisci i tuoi team e schiera le formazioni per le prossime gare
-        </Typography>
-      </Box>
+      <PageHeader
+        eyebrow="Garage"
+        title="I miei team"
+        subtitle="Gestisci rose, mercato e formazioni per i prossimi round."
+      />
 
       {/* Prossima Gara */}
       {nextRace && (
@@ -150,26 +149,13 @@ export default function TeamsPage() {
 
       {/* Lista Team */}
       {filteredTeams.length === 0 ? (
-        <Card>
-          <CardContent sx={{ textAlign: 'center', py: 4 }}>
-            <SportsMotorsports sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
-            <Typography variant="h6" gutterBottom>
-              {searchQuery ? 'Nessun team trovato' : 'Non hai ancora creato nessun team'}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              {searchQuery ? 'Prova con una ricerca diversa' : 'Unisciti a una lega per iniziare a giocare!'}
-            </Typography>
-            {!searchQuery && (
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={() => navigate('/leagues')}
-              >
-                Esplora Leghe
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={<SportsMotorsports sx={{ fontSize: 64 }} />}
+          title={searchQuery ? 'Nessun team trovato' : 'Non hai ancora creato nessun team'}
+          description={searchQuery ? 'Prova con una ricerca diversa.' : 'Unisciti a una lega per iniziare a giocare.'}
+          actionLabel={!searchQuery ? 'Esplora leghe' : undefined}
+          onAction={!searchQuery ? () => navigate('/leagues') : undefined}
+        />
       ) : (
         <Grid container spacing={3}>
           {filteredTeams.map((team) => (

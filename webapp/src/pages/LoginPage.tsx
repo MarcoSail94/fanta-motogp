@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Container, TextField, Button, Typography, Box, Alert, CircularProgress, Paper, Avatar } from '@mui/material';
+import { Container, TextField, Button, Typography, Box, Alert, CircularProgress, Paper, Avatar, Stack } from '@mui/material';
 import SportsMotorsportsIcon from '@mui/icons-material/SportsMotorsports';
 
 export default function LoginPage() {
@@ -30,24 +30,37 @@ export default function LoginPage() {
   };
 
   return (
-    <Container component="main" maxWidth="xs">
+    <Container component="main" maxWidth="xs" sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', py: 4 }}>
       <Paper
         elevation={6}
         sx={{
-          marginTop: 8,
+          width: '100%',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          padding: 4,
+          p: { xs: 3, sm: 4 },
+          border: '1px solid rgba(230,0,35,0.22)',
+          background: `
+            linear-gradient(135deg, rgba(230,0,35,0.16), rgba(26,26,35,0.94) 58%),
+            radial-gradient(circle at 88% 6%, rgba(255,107,0,0.18), transparent 30%)
+          `,
         }}
       >
-        <Avatar sx={{ m: 1, bgcolor: 'primary.main' }}>
-          <SportsMotorsportsIcon />
-        </Avatar>
-        <Typography component="h1" variant="h5">
-          Fanta MotoGP
-        </Typography>
-        <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
+        <Stack spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
+          <Avatar sx={{ bgcolor: 'primary.main', width: 56, height: 56 }}>
+            <SportsMotorsportsIcon />
+          </Avatar>
+          <Box textAlign="center">
+            <Typography component="h1" variant="h4" sx={{ fontWeight: 900, textTransform: 'uppercase' }}>
+              Fanta MotoGP
+            </Typography>
+            <Typography color="text.secondary">
+              Accedi al tuo garage e prepara il prossimo round.
+            </Typography>
+          </Box>
+        </Stack>
+
+        <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1, width: '100%' }}>
           {error && <Alert severity="error" sx={{ my: 2, width: '100%' }}>{error}</Alert>}
           <TextField
             margin="normal"

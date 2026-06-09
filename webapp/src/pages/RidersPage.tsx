@@ -1,5 +1,5 @@
 // webapp/src/pages/RidersPage.tsx
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getRiders } from '../services/api';
 import { queryKeys } from '../services/queryKeys';
@@ -16,17 +16,10 @@ import {
   Paper,
   Alert,
 } from '@mui/material';
-import { Search } from '@mui/icons-material';
+import { Search, SportsMotorsports } from '@mui/icons-material';
 import { RiderCard } from '../components/RiderCard';
-
-const PageTitle = ({ title }: { title: string }) => (
-    <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <Box sx={{ height: '40px', width: '6px', bgcolor: 'primary.main', mr: 2 }} />
-        <Typography variant="h3" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
-            / {title}
-        </Typography>
-    </Box>
-);
+import { EmptyState } from '../components/ui/EmptyState';
+import { PageHeader } from '../components/ui/PageHeader';
 
 export default function RidersPage() {
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | 'MOTOGP' | 'MOTO2' | 'MOTO3'>('ALL');
@@ -58,7 +51,11 @@ export default function RidersPage() {
 
   return (
     <Box>
-      <PageTitle title="Piloti Ufficiali" />
+      <PageHeader
+        eyebrow="Scouting"
+        title="Piloti ufficiali"
+        subtitle="Filtra per categoria, valuta costo e rendimento, poi entra nel dettaglio pilota."
+      />
       <Paper sx={{ p: 2, mb: 4 }}>
         <Grid container spacing={2} alignItems="center">
           <Grid size={{ xs: 12, md: 6 }}>
@@ -101,7 +98,11 @@ export default function RidersPage() {
           ))
         ) : (
           <Grid size={{ xs:12 }}>
-            <Alert severity="info">Nessun pilota trovato con i filtri attuali.</Alert>
+            <EmptyState
+              icon={<SportsMotorsports sx={{ fontSize: 56 }} />}
+              title="Nessun pilota trovato"
+              description="Prova a cambiare categoria o termine di ricerca."
+            />
           </Grid>
         )}
       </Grid>

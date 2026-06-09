@@ -14,6 +14,7 @@ import {
   EmojiEvents, Groups, Add, Lock, Public,
   ContentCopy, Login, Code, Check
 } from '@mui/icons-material';
+import { PageHeader } from '../components/ui/PageHeader';
 
 interface League {
   id: string;
@@ -393,14 +394,34 @@ export default function LeaguesPage() {
     <Box sx={{ 
       minHeight: '100vh',
       bgcolor: 'background.default',
-      pb: 10
+      pb: { xs: 12, md: 3 }
     }}>
+      <Box sx={{ px: isMobile ? 1.5 : 3, pt: isMobile ? 0 : 1 }}>
+        <PageHeader
+          eyebrow="Leghe"
+          title="Campionati"
+          subtitle="Entra in una lega, crea il tuo campionato o riprendi da dove eri rimasto."
+          actions={
+            !isMobile && (
+              <>
+                <Button variant="outlined" startIcon={<Code />} onClick={() => setJoinDialogOpen(true)}>
+                  Codice
+                </Button>
+                <Button variant="contained" startIcon={<Add />} onClick={handleCreateLeague}>
+                  Crea lega
+                </Button>
+              </>
+            )
+          }
+        />
+      </Box>
+
       <Box sx={{ 
         bgcolor: 'background.paper',
         borderBottom: 1,
         borderColor: 'divider',
         position: 'sticky',
-        top: 0,
+        top: isMobile ? 64 : 0,
         zIndex: 100
       }}>
         <Tabs 
@@ -515,7 +536,7 @@ export default function LeaguesPage() {
       {/* FAB con Speed Dial */}
       <SpeedDial
         ariaLabel="Azioni Lega"
-        sx={{ position: 'fixed', bottom: 16, right: 16 }}
+        sx={{ position: 'fixed', bottom: { xs: 88, md: 16 }, right: 16, display: { xs: 'flex', md: 'none' } }}
         icon={<SpeedDialIcon />}
         onClose={() => setSpeedDialOpen(false)}
         onOpen={() => setSpeedDialOpen(true)}

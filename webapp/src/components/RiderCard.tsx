@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardActionArea, CardMedia, Typography, Box, Chip, Stack } from '@mui/material';
+import { Card, CardActionArea, CardMedia, Typography, Box, Chip, Stack, Divider } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { Euro, Speed, Star } from '@mui/icons-material';
 import type { Rider } from '../types';
@@ -193,7 +193,53 @@ export function RiderCard({ rider }: { rider: Rider }) {
             </Stack>
           </Box>
         </Box>
-        
+        <Stack
+          direction="row"
+          divider={<Divider orientation="vertical" flexItem />}
+          sx={{
+            width: '100%',
+            px: 1.5,
+            py: 1.25,
+            bgcolor: 'rgba(15,15,19,0.72)',
+          }}
+        >
+          <Box sx={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
+            <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+              <Euro sx={{ fontSize: 16, color: 'primary.main' }} />
+              <Typography variant="subtitle2" fontWeight={900}>
+                {rider.value}
+              </Typography>
+            </Stack>
+            <Typography variant="caption" color="text.secondary">
+              crediti
+            </Typography>
+          </Box>
+
+          <Box sx={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
+            <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+              <Speed sx={{ fontSize: 16, color: 'secondary.main' }} />
+              <Typography variant="subtitle2" fontWeight={900}>
+                {rider.averagePoints !== undefined ? rider.averagePoints.toFixed(1) : '-'}
+              </Typography>
+            </Stack>
+            <Typography variant="caption" color="text.secondary">
+              media
+            </Typography>
+          </Box>
+
+          <Box sx={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
+            <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+              <Star sx={{ fontSize: 16, color: 'warning.main' }} />
+              <Typography variant="subtitle2" fontWeight={900}>
+                {rider.totalPoints ?? '-'}
+              </Typography>
+            </Stack>
+            <Typography variant="caption" color="text.secondary">
+              punti
+            </Typography>
+          </Box>
+        </Stack>
+
         {/* Category Bar */}
         <Box
           sx={{

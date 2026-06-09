@@ -7,7 +7,7 @@ import { useAuth } from './contexts/AuthContext';
 import { 
   AppBar, Box, Toolbar, IconButton, Typography, Drawer, List, 
   ListItem, ListItemButton, ListItemIcon, ListItemText, 
-  Avatar, Container, useMediaQuery, BottomNavigation, 
+  Avatar, useMediaQuery, BottomNavigation,
   BottomNavigationAction, Paper, Divider, CircularProgress, useTheme,
   alpha
 } from '@mui/material';
@@ -63,6 +63,17 @@ function MainLayout() {
     menuItems.push({ label: 'Admin', icon: <AdminPanelSettings />, path: '/admin' });
   }
 
+  const getActivePath = () => {
+    if (location.pathname.startsWith('/teams')) return '/teams';
+    if (location.pathname.startsWith('/leagues')) return '/leagues';
+    if (location.pathname.startsWith('/riders')) return '/riders';
+    if (location.pathname.startsWith('/calendar') || location.pathname.startsWith('/races')) return '/calendar';
+    if (location.pathname.startsWith('/admin')) return '/admin';
+    return '/';
+  };
+
+  const activePath = getActivePath();
+
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       
@@ -108,8 +119,8 @@ function MainLayout() {
                     justifyContent: drawerOpen ? 'initial' : 'center',
                     px: 2.5,
                     mb: 0.5,
-                    bgcolor: location.pathname === item.path ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
-                    borderLeft: location.pathname === item.path ? `4px solid ${theme.palette.primary.main}` : '4px solid transparent',
+                    bgcolor: activePath === item.path ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
+                    borderLeft: activePath === item.path ? `4px solid ${theme.palette.primary.main}` : '4px solid transparent',
                     '&:hover': {
                        bgcolor: alpha(theme.palette.text.primary, 0.05),
                     }
@@ -120,7 +131,7 @@ function MainLayout() {
                     minWidth: 0, 
                     mr: drawerOpen ? 3 : 'auto', 
                     justifyContent: 'center', 
-                    color: location.pathname === item.path ? 'primary.main' : 'text.secondary' 
+                    color: activePath === item.path ? 'primary.main' : 'text.secondary'
                   }}>
                     {item.icon}
                   </ListItemIcon>
@@ -176,18 +187,32 @@ function MainLayout() {
       {isMobile && (
         <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1100 }} elevation={3}>
           <BottomNavigation
-            showLabels={false}
-            value={location.pathname}
+            showLabels
+            value={activePath}
             onChange={(_, newValue) => navigate(newValue)}
             sx={{ 
               bgcolor: 'background.paper', 
-              height: 65,
-              borderTop: '1px solid rgba(255,255,255,0.1)'
+              height: 72,
+              borderTop: '1px solid rgba(255,255,255,0.1)',
+              '& .MuiBottomNavigationAction-root': {
+                minWidth: 0,
+                px: 0.5,
+                color: 'text.secondary',
+              },
+              '& .Mui-selected': {
+                color: 'primary.main',
+              },
+              '& .MuiBottomNavigationAction-label': {
+                fontSize: '0.68rem',
+                fontWeight: 700,
+                mt: 0.25,
+              },
             }}
           >
             <BottomNavigationAction label="Home" value="/" icon={<Home />} />
             <BottomNavigationAction label="Team" value="/teams" icon={<SportsMotorsports />} />
             <BottomNavigationAction label="Leghe" value="/leagues" icon={<Groups />} />
+            <BottomNavigationAction label="Piloti" value="/riders" icon={<Person />} />
             <BottomNavigationAction label="Gare" value="/calendar" icon={<CalendarToday />} />
           </BottomNavigation>
         </Paper>
@@ -197,7 +222,7 @@ function MainLayout() {
 }
 
 function AuthLayout() {
-    return <Container component="main" maxWidth="xs" sx={{mt: 8}}><Outlet /></Container>;
+    return <Outlet />;
 }
 
 function App() {

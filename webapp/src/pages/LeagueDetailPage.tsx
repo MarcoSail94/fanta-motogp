@@ -34,6 +34,7 @@ import { LeagueSeasonReset } from '../components/LeagueSeasonReset';
 import { LeagueStatsTab } from '../components/league/LeagueStatsTab';
 import { LeagueTabPanel } from '../components/league/LeagueTabPanel';
 import { MobileStandingCard } from '../components/league/MobileStandingCard';
+import { MetricTile } from '../components/ui/MetricTile';
 import type { LeagueStanding } from '../components/league/MobileStandingCard';
 
 export default function LeagueDetailPage() {
@@ -222,18 +223,37 @@ export default function LeagueDetailPage() {
       {/* Header Lega - Responsive */}
       <Paper
         sx={{
-          p: isMobile ? 2 : 3,
+          p: { xs: 2, md: 3 },
           mb: 2,
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white'
+          overflow: 'hidden',
+          position: 'relative',
+          background: `
+            linear-gradient(135deg, rgba(230,0,35,0.48) 0%, rgba(15,15,19,0.98) 58%),
+            radial-gradient(circle at 92% 10%, rgba(255,107,0,0.22), transparent 30%)
+          `,
+          color: 'white',
+          border: '1px solid rgba(230,0,35,0.28)'
         }}
       >
+        <EmojiEvents
+          sx={{
+            position: 'absolute',
+            right: { xs: -36, md: 20 },
+            top: { xs: -42, md: -34 },
+            fontSize: { xs: 170, md: 260 },
+            opacity: 0.08,
+            transform: 'rotate(10deg)',
+          }}
+        />
         <Grid container alignItems="center" spacing={2}>
           <Grid size={{ xs: 12, md: 8}}>
+            <Typography variant="overline" sx={{ fontWeight: 900, opacity: 0.78 }}>
+              Hub lega
+            </Typography>
             <Typography
               variant={isMobile ? "h5" : "h4"}
               gutterBottom
-              sx={{ fontWeight: 'bold' }}
+              sx={{ fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.05 }}
             >
               {league.name}
             </Typography>
@@ -266,8 +286,8 @@ export default function LeagueDetailPage() {
                 }}
               />
               <Chip
-                icon={<EmojiEvents sx={{ color: 'white !important' }} />}
-                label={`Premio: ${league.prizePool || 0}€`}
+                icon={<SportsMotorsports sx={{ color: 'white !important' }} />}
+                label={userHasTeam ? myTeam.name : 'Team da creare'}
                 size={isMobile ? "small" : "medium"}
                 sx={{
                   backgroundColor: 'rgba(255,255,255,0.2)',
@@ -308,40 +328,67 @@ export default function LeagueDetailPage() {
                 </IconButton>
               </Tooltip>
 
-              {/* Posizione Mobile */}
-              {isMobile && userHasTeam && myPosition > 0 && (
-                <Box
-                  sx={{
-                    ml: 'auto',
-                    p: 1,
-                    bgcolor: 'rgba(255,255,255,0.1)',
-                    borderRadius: 1
-                  }}
+              {nextRace && userHasTeam && !isLocked && (
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  size={isMobile ? "small" : "medium"}
+                  onClick={handleManageLineup}
                 >
-                  <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                    Posizione
-                  </Typography>
-                  <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                    #{myPosition}
-                  </Typography>
-                </Box>
+                  {hasLineupForNextRace ? 'Aggiorna lineup' : 'Schiera'}
+                </Button>
               )}
             </Stack>
-
-            {/* Posizione Desktop */}
-            {!isMobile && userHasTeam && myPosition > 0 && (
-              <Box mt={2}>
-                <Typography variant="h6">
-                  La tua posizione: #{myPosition}
-                </Typography>
-                <Typography variant="body2">
-                  {myTeam.totalPoints || 0} punti totali
-                </Typography>
-              </Box>
-            )}
           </Grid>
         </Grid>
       </Paper>
+
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <MetricTile
+            label="Posizione"
+            value={userHasTeam && myPosition > 0 ? `#${myPosition}` : '-'}
+            helper={userHasTeam ? `${myTeam.totalPoints || 0} punti` : 'crea un team'}
+            icon={<EmojiEvents />}
+            tone="warning"
+          />
+        </Grid>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <MetricTile
+            label="Team"
+            value={`${league.teams?.length || 0}/${league.maxTeams}`}
+            helper={league.teamsLocked ? 'mercato chiuso' : 'posti lega'}
+            icon={<Groups />}
+            tone={league.teamsLocked ? 'error' : 'primary'}
+          />
+        </Grid>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <MetricTile
+            label="Budget"
+            value={league.budget}
+            helper="crediti iniziali"
+            icon={<SportsMotorsports />}
+            tone="secondary"
+          />
+        </Grid>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <MetricTile
+            label="Deadline"
+            value={
+              deadline
+                ? isLocked
+                  ? 'Chiusa'
+                  : daysUntilDeadline && daysUntilDeadline > 0
+                  ? `${daysUntilDeadline}g`
+                  : `${Math.max(0, hoursUntilDeadline || 0)}h`
+                : '-'
+            }
+            helper={nextRace?.name || 'nessuna gara'}
+            icon={<Timer />}
+            tone={isLocked ? 'error' : 'success'}
+          />
+        </Grid>
+      </Grid>
 
       {/* Box Scadenza Gara - Responsive */}
       {nextRace && deadline && (
@@ -985,10 +1032,10 @@ export default function LeagueDetailPage() {
                         color="text.secondary"
                         sx={{ fontSize: isMobile ? '0.7rem' : '0.75rem' }}
                       >
-                        Premio
+                        Lineup
                       </Typography>
                       <Typography variant={isMobile ? "body1" : "h6"}>
-                        {league.prizePool}€
+                        {lineupVisibility === 'ALWAYS_VISIBLE' ? 'Sempre visibili' : 'Dopo deadline'}
                       </Typography>
                     </Grid>
                   </Grid>
