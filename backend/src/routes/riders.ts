@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import { query, param, body } from 'express-validator';
 import * as ridersController from '../controllers/ridersController';
-import { authenticate } from '../middleware/auth';
+import { authenticate, requireAdmin } from '../middleware/auth';
 
 const router = Router();
 
@@ -53,10 +53,10 @@ router.get('/:id', riderIdValidation, ridersController.getRiderById);
 router.get('/:id/stats', riderIdValidation, ridersController.getRiderStats);
 
 
-// Routes protette (richiedono autenticazione)
-// TODO: Aggiungere middleware per verificare ruolo admin
-router.put('/:id/value', 
-  authenticate, 
+// Routes protette (richiedono privilegi amministratore)
+router.put('/:id/value',
+  authenticate,
+  requireAdmin,
   riderIdValidation, 
   updateValueValidation, 
   ridersController.updateRiderValue

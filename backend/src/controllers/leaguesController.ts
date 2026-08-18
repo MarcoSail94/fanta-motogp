@@ -147,6 +147,30 @@ export const getLeagueById = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const userId = req.userId;
 
+    const leagueAccess = await prisma.league.findUnique({
+      where: { id },
+      select: { isPrivate: true }
+    });
+
+    if (!leagueAccess) {
+      return res.status(404).json({ error: 'Lega non trovata' });
+    }
+
+    if (leagueAccess.isPrivate) {
+      if (!userId) {
+        return res.status(401).json({ error: 'Autenticazione richiesta per accedere a questa lega' });
+      }
+
+      const membership = await prisma.leagueMember.findUnique({
+        where: { userId_leagueId: { userId, leagueId: id } },
+        select: { userId: true }
+      });
+
+      if (!membership) {
+        return res.status(403).json({ error: 'Non sei membro di questa lega' });
+      }
+    }
+
     const league = await prisma.league.findUnique({
       where: { id },
       include: {
@@ -184,13 +208,6 @@ export const getLeagueById = async (req: AuthRequest, res: Response) => {
 
     if (!league) {
       return res.status(404).json({ error: 'Lega non trovata' });
-    }
-
-    if (league.isPrivate && userId) {
-      const isMember = league.members.some(m => m.userId === userId);
-      if (!isMember) {
-        return res.status(403).json({ error: 'Non sei membro di questa lega' });
-      }
     }
 
     // Crea una mappa per tracciare le posizioni precedenti

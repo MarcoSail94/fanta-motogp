@@ -182,10 +182,13 @@ export const getRiderValues = async (req: Request, res: Response) => {
 // PUT /api/riders/:id/value - Aggiorna valore pilota (ADMIN)
 export const updateRiderValue = async (req: Request, res: Response) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
     const { id } = req.params;
     const { value } = req.body;
-
-    // TODO: Verifica permessi admin
 
     const updatedRider = await prisma.rider.update({
       where: { id },
@@ -197,6 +200,10 @@ export const updateRiderValue = async (req: Request, res: Response) => {
       rider: updatedRider
     });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return res.status(404).json({ error: 'Pilota non trovato' });
+    }
+
     console.error('Errore aggiornamento valore:', error);
     res.status(500).json({ error: 'Errore nell\'aggiornamento del valore' });
   }
