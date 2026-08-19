@@ -1,9 +1,10 @@
 // backend/src/controllers/leaguesController.ts
 import { Request, Response } from 'express';
-import { PrismaClient, TeamScore } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { validationResult } from 'express-validator';
 import crypto from 'crypto';
 import { AuthRequest } from '../middleware/auth';
+import { buildLeagueStandings, loadLeagueStandings } from '../services/standingsService';
 
 const prisma = new PrismaClient();
 
@@ -33,22 +34,25 @@ export const getMyLeagues = async (req: AuthRequest, res: Response) => {
         },
         teams: {
           include: {
-            scores: true
+            user: {
+              select: { username: true }
+            },
+            scores: {
+              include: {
+                race: {
+                  select: { gpDate: true }
+                }
+              }
+            }
           }
         }
       }
     });
 
     const formattedLeagues = leagues.map(league => {
-      const standings = league.teams
-        .map(team => ({
-          teamId: team.id,
-          userId: team.userId,
-          totalPoints: (team.startingPoints || 0) + team.scores.reduce((sum: number, s: TeamScore) => sum + s.totalPoints, 0),
-        }))
-        .sort((a, b) => a.totalPoints - b.totalPoints);
+      const standings = buildLeagueStandings(league.teams);
       const userTeam = standings.find(team => team.userId === userId);
-      const userPosition = userTeam ? standings.findIndex(team => team.teamId === userTeam.teamId) + 1 : null;
+      const userPosition = userTeam?.position ?? null;
       const userRole = league.members[0]?.role || 'MEMBER';
 
       return {
@@ -210,72 +214,7 @@ export const getLeagueById = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Lega non trovata' });
     }
 
-    // Crea una mappa per tracciare le posizioni precedenti
-    const previousPositions = new Map<string, number>();
-    
-    // Se ci sono almeno 2 gare, calcola le posizioni dopo la penultima gara
-    if (league.teams.some(team => team.scores.length >= 2)) {
-      const penultimateStandings = league.teams
-        .map(team => {
-          // Escludi l'ultimo punteggio (gara più recente)
-          const scoresWithoutLast = team.scores.slice(1); // slice(1) perché sono ordinate DESC
-          const totalWithoutLast = scoresWithoutLast.reduce((sum, s) => sum + s.totalPoints, 0) + (team.startingPoints || 0);
-          
-          return {
-            teamId: team.id,
-            totalPoints: totalWithoutLast
-          };
-        })
-        .sort((a, b) => a.totalPoints - b.totalPoints);
-
-      // Assegna le posizioni precedenti
-      penultimateStandings.forEach((team, index) => {
-        previousPositions.set(team.teamId, index + 1);
-      });
-    }
-
-    // Calcola la classifica attuale con tutti i campi necessari
-    const standings = league.teams
-      .map(team => {
-        const totalRacePoints = team.scores.reduce((sum: number, s: TeamScore) => sum + s.totalPoints, 0);
-        const totalPoints = (team.startingPoints || 0) + totalRacePoints;
-        
-        // Calcola i punti dell'ultima gara
-        const lastRacePoints = team.scores.length > 0 ? team.scores[0].totalPoints : null;
-        
-        return {
-          teamId: team.id,
-          teamName: team.name,
-          userId: team.userId,
-          userName: team.user.username,
-          totalPoints: totalPoints,
-          lastRacePoints: lastRacePoints,
-          gamesPlayed: team.scores.length
-        };
-      })
-      .sort((a, b) => a.totalPoints - b.totalPoints)
-      .map((team, index) => {
-        const currentPosition = index + 1;
-        const previousPosition = previousPositions.get(team.teamId);
-        
-        // Calcola il trend
-        let trend: 'up' | 'down' | 'same' | null = null;
-        if (previousPosition !== undefined) {
-          if (currentPosition < previousPosition) {
-            trend = 'up';
-          } else if (currentPosition > previousPosition) {
-            trend = 'down';
-          } else {
-            trend = 'same';
-          }
-        }
-        
-        return {
-          ...team,
-          position: currentPosition,
-          trend: trend
-        };
-      });
+    const standings = buildLeagueStandings(league.teams);
 
     res.json({
       league: {
@@ -451,31 +390,7 @@ export const leaveLeague = async (req: AuthRequest, res: Response) => {
 export const getLeagueStandings = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const teams = await prisma.team.findMany({
-      where: { leagueId: id },
-      include: {
-        user: { select: { id: true, username: true } },
-        scores: { include: { race: true }, orderBy: { race: { gpDate: 'desc' } } }
-      }
-    });
-
-    const standings = teams.map(team => {
-      const totalRacePoints = team.scores.reduce((sum: number, s: TeamScore) => sum + s.totalPoints, 0);
-      const totalPoints = (team.startingPoints || 0) + totalRacePoints;
-      return {
-        teamId: team.id,
-        teamName: team.name,
-        userId: team.userId,
-        userName: team.user.username,
-        totalPoints,
-        gamesPlayed: team.scores.length
-      };
-    })
-    .sort((a, b) => a.totalPoints - b.totalPoints)
-    .map((team, index) => ({
-      ...team,
-      position: index + 1,
-    }));
+    const standings = await loadLeagueStandings(prisma, id);
 
     res.json({ standings });
   } catch (error) {

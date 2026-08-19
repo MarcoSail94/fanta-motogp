@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { PrismaClient, Category, RiderType } from '@prisma/client';
 import { validationResult } from 'express-validator';
 import { AuthRequest } from '../middleware/auth';
+import { calculateTotalPoints, loadLeagueStandings } from '../services/standingsService';
 
 const prisma = new PrismaClient();
 
@@ -36,6 +37,17 @@ export const getMyTeams = async (req: AuthRequest, res: Response) => {
       },
     });
 
+    const scoreTotals = teams.length > 0
+      ? await prisma.teamScore.groupBy({
+          by: ['teamId'],
+          where: { teamId: { in: teams.map(team => team.id) } },
+          _sum: { totalPoints: true }
+        })
+      : [];
+    const scoreTotalsByTeam = new Map(
+      scoreTotals.map(score => [score.teamId, score._sum.totalPoints ?? 0])
+    );
+
     // Per ogni team, aggiungi le statistiche e lo stato dello schieramento
     const teamsWithData = await Promise.all(
       teams.map(async (team) => {
@@ -49,7 +61,10 @@ export const getMyTeams = async (req: AuthRequest, res: Response) => {
         }
 
         const totalValue = team.riders.reduce((sum, tr) => sum + tr.rider.value, 0);
-        const totalPoints = team.scores.reduce((sum, score) => sum + score.totalPoints, 0);
+        const totalPoints = calculateTotalPoints(
+          team.startingPoints,
+          scoreTotalsByTeam.get(team.id) ?? 0
+        );
         const remainingBudget = team.league.budget - totalValue;
 
         return {
@@ -384,39 +399,18 @@ export const getTeamStandings = async (req: AuthRequest, res: Response) => {
 
     const team = await prisma.team.findUnique({
       where: { id },
-      include: {
-        league: {
-          include: {
-            teams: {
-              include: {
-                user: {
-                  select: { id: true, username: true }
-                },
-                scores: true
-              }
-            }
-          }
-        }
-      }
+      select: { leagueId: true }
     });
 
     if (!team) {
       return res.status(404).json({ error: 'Team non trovato' });
     }
 
-    // Calcola classifica - ORDINAMENTO CRESCENTE (vince chi ha meno punti)
-    const standings = team.league.teams
-      .map(t => ({
-        teamId: t.id,
-        teamName: t.name,
-        username: t.user.username,
-        totalPoints: t.scores.reduce((sum, s) => sum + s.totalPoints, 0),
-        isCurrentTeam: t.id === id
-      }))
-      .sort((a, b) => a.totalPoints - b.totalPoints) // CORRETTO: crescente
-      .map((t, index) => ({
-        ...t,
-        position: index + 1
+    const standings = (await loadLeagueStandings(prisma, team.leagueId))
+      .map(standing => ({
+        ...standing,
+        username: standing.userName,
+        isCurrentTeam: standing.teamId === id
       }));
 
     res.json({ standings });
@@ -457,28 +451,17 @@ export const getMyTeamInLeague = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Calcola posizione attuale
-    const allTeamScores = await prisma.teamScore.groupBy({
-      by: ['teamId'],
-      where: {
-        team: { leagueId }
-      },
-      _sum: {
-        totalPoints: true,
-      },
-    });
-
-    const sortedTeams = allTeamScores
-      .sort((a, b) => (a._sum.totalPoints || 0) - (b._sum.totalPoints || 0));
-    
-    const position = sortedTeams.findIndex(t => t.teamId === team.id) + 1;
-    const totalPoints = sortedTeams.find(t => t.teamId === team.id)?._sum.totalPoints || 0;
+    const standings = await loadLeagueStandings(prisma, leagueId);
+    const teamStanding = standings.find(standing => standing.teamId === team.id);
 
     res.json({
       team: {
         ...team,
-        position,
-        totalPoints,
+        position: teamStanding?.position ?? 0,
+        totalPoints: teamStanding?.totalPoints ?? calculateTotalPoints(team.startingPoints, 0),
+        trend: teamStanding?.trend ?? null,
+        lastRacePoints: teamStanding?.lastRacePoints ?? null,
+        gamesPlayed: teamStanding?.gamesPlayed ?? 0,
       },
       hasTeam: true,
     });
