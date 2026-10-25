@@ -7,7 +7,7 @@ import { queryKeys } from '../services/queryKeys';
 import { useNotification } from '../contexts/NotificationContext';
 import {
   Box, Typography, Grid, Paper, Button, Avatar, IconButton, InputBase,
-  Chip, Stack, Card, CardActionArea, Skeleton, Tooltip, ToggleButton, ToggleButtonGroup
+  Chip, Stack, Card, CardActionArea, Skeleton, Tooltip
 } from '@mui/material';
 import { AccessTime, Add, CheckCircle, Remove, Save } from '@mui/icons-material';
 import { format } from 'date-fns';
@@ -27,8 +27,6 @@ const SESSIONS = [
 ];
 const MIN_POSITION = 1;
 const MAX_POSITION = 30;
-
-type SortMode = 'form' | 'number';
 
 interface SessionResult {
   id: string;
@@ -91,7 +89,6 @@ export default function LineupPage() {
 
   // State locale per il lineup: { riderId: { selected: boolean, pos: string } }
   const [selection, setSelection] = useState<Record<string, { selected: boolean; pos: string }>>({});
-  const [sortMode, setSortMode] = useState<SortMode>('form');
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -222,16 +219,6 @@ export default function LineupPage() {
     return positions.length > 0 ? Math.min(...positions) : null;
   };
 
-  // Forma weekend: prima chi ha il miglior risultato tra Q, FP2, PR e FP1, poi chi non ne ha
-  const sortRiders = (categoryRiders: any[], category: string) => {
-    if (sortMode === 'number') return [...categoryRiders].sort((a, b) => a.number - b.number);
-    return [...categoryRiders].sort((a, b) => {
-      const bestA = getBestPosition(getRiderSessionResults(a.id, category)) ?? Number.POSITIVE_INFINITY;
-      const bestB = getBestPosition(getRiderSessionResults(b.id, category)) ?? Number.POSITIVE_INFINITY;
-      return bestA !== bestB ? bestA - bestB : a.number - b.number;
-    });
-  };
-
   // Altri piloti della stessa categoria con la stessa posizione prevista (consentito, ma probabilmente una svista)
   const getDuplicateRiders = (riderId: string, category: string) => {
     const pos = selection[riderId]?.pos;
@@ -358,24 +345,10 @@ export default function LineupPage() {
         </Button>
       </Paper>
 
-      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ mb: 2 }}>
-        <Typography variant="body2" color="text.secondary">Ordina per</Typography>
-        <ToggleButtonGroup
-          size="small"
-          exclusive
-          value={sortMode}
-          onChange={(_, value: SortMode | null) => value && setSortMode(value)}
-          aria-label="Ordinamento piloti"
-        >
-          <ToggleButton value="form">Forma weekend</ToggleButton>
-          <ToggleButton value="number">Numero</ToggleButton>
-        </ToggleButtonGroup>
-      </Stack>
-
       {/* Griglia Piloti per Categoria */}
       <Grid container spacing={3}>
         {CATEGORIES.map(cat => {
-          const catRiders = sortRiders(riders.filter((r:any) => r.category === cat), cat);
+          const catRiders = riders.filter((r:any) => r.category === cat);
           return (
             <Grid size={{ xs: 12, md: 4}} key={cat}>
               <Paper sx={{ 
