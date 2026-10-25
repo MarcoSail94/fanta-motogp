@@ -12,9 +12,10 @@ export const getMyTeams = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
 
-    // Trova la prossima gara utile per controllare lo schieramento
+    // Gara di riferimento per lo schieramento: quella del weekend in corso fino alla sua fine,
+    // poi la successiva (stessa regola di /races/upcoming usata da Home e I miei team)
     const upcomingRace = await prisma.race.findFirst({
-      where: { gpDate: { gte: new Date() } },
+      where: { endDate: { gte: new Date() } },
       orderBy: { gpDate: 'asc' },
     });
 

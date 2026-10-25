@@ -14,6 +14,10 @@ export function getGpDate(race: RaceDateLike) {
   return parseISO(race.gpDate);
 }
 
+export function getRaceEndDate(race: { endDate: string }) {
+  return parseISO(race.endDate);
+}
+
 export function getLineupDeadlineDate(race: RaceDateLike) {
   return getSprintDate(race) || getGpDate(race);
 }

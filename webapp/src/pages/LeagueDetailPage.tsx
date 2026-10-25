@@ -36,7 +36,7 @@ import { LeagueTabPanel } from '../components/league/LeagueTabPanel';
 import { MobileStandingCard } from '../components/league/MobileStandingCard';
 import { MetricTile } from '../components/ui/MetricTile';
 import type { LeagueStanding } from '../components/league/MobileStandingCard';
-import { getGpDate, getLineupDeadlineDate } from '../utils/raceDates';
+import { getGpDate, getLineupDeadlineDate, getRaceEndDate } from '../utils/raceDates';
 import { getRaceCancellationNotice } from '../utils/raceCancellation';
 
 function LeagueTabLabel({ icon, label }: { icon: React.ReactNode; label: string }) {
@@ -135,7 +135,8 @@ export default function LeagueDetailPage() {
   });
 
   const allRaces = racesData?.races || [];
-  const nextRace = allRaces.find((r: any) => !isPast(getGpDate(r)));
+  // La gara resta quella del weekend in corso fino alla fine del weekend, poi si passa alla successiva
+  const nextRace = allRaces.find((r: any) => !isPast(getRaceEndDate(r)));
   const myTeam = myTeamData?.team;
   const deadline = nextRace ? getLineupDeadlineDate(nextRace) : null;
 
@@ -452,8 +453,8 @@ export default function LeagueDetailPage() {
           <Stack spacing={2}>
             <Stack direction="row" spacing={1.5} alignItems="flex-start" justifyContent="space-between">
               <Box sx={{ minWidth: 0 }}>
-                <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 900, letterSpacing: 1.8 }}>
-                  Prossimo evento
+                <Typography variant="overline" color={isLocked ? 'error.main' : 'text.secondary'} sx={{ fontWeight: 900, letterSpacing: 1.8 }}>
+                  {isLocked ? 'Gara in corso' : 'Prossimo evento'}
                 </Typography>
                 <Typography
                   variant={isMobile ? 'h6' : 'h5'}
@@ -473,7 +474,7 @@ export default function LeagueDetailPage() {
               <Chip
                 label={
                   isLocked
-                    ? 'Chiusa'
+                    ? 'In corso'
                     : hasLineupForNextRace
                     ? 'Lineup pronta'
                     : userHasTeam
