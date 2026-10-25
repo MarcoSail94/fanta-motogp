@@ -2,6 +2,7 @@
 import axios from 'axios';
 import { Category, PrismaClient, RiderType, Rider, SessionType, Race } from '@prisma/client';
 import { buildRaceScoringPlan, pickApiSession, RaceScoringPlan } from './raceCancellationService';
+import { NOT_CLASSIFIED_POSITION_BASE, toPublicPosition } from './resultPositions';
 
 const prisma = new PrismaClient();
 
@@ -665,7 +666,7 @@ export class MotoGPApiService {
 
       // TRUCCHETTO: se la posizione è null (non classificato), diamo una posizione progressiva fittizia (100+)
       // per permettere al DB di rispettare l'ordinamento calcolato con l'algoritmo.
-      const finalPosition = result.position !== null ? result.position : (100 + i);
+      const finalPosition = result.position !== null ? result.position : (NOT_CLASSIFIED_POSITION_BASE + i);
 
       let rider = await prisma.rider.findUnique({ where: { apiRiderId: result.rider.riders_api_uuid } });
       
@@ -803,7 +804,7 @@ export class MotoGPApiService {
         const category = result.rider.category;
         
         // TRUCCHETTO INVERSO: Per il calcolo base del FantaMotoGP, trattiamo le posizioni > 100 come DNF/null
-        const effectivePosition = (result.position && result.position < 100) ? result.position : null;
+        const effectivePosition = toPublicPosition(result.position);
 
         if (result.session === 'RACE') {
           raceResultsMap.set(result.riderId, { position: effectivePosition, status: result.status });

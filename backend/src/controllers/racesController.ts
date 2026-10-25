@@ -4,6 +4,7 @@ import { raceWeekendDetector } from '../services/raceWeekendDetector';
 import { PrismaClient } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { RaceCancellationInput, summarizeRaceCancellations } from '../services/raceCancellationService';
+import { withPublicPosition } from '../services/resultPositions';
 
 const prisma = new PrismaClient();
 
@@ -100,7 +101,7 @@ export const getRaceById = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Gara non trovata' });
     }
     
-    res.json({ race: withCancellationInfo(race) });
+    res.json({ race: { ...withCancellationInfo(race), results: race.results.map(withPublicPosition) } });
 
   } catch (error) {
     console.error('Errore recupero dettagli gara:', error);
@@ -162,7 +163,7 @@ export const getRaceResults = async (req: Request, res: Response) => {
       
       // Formatta il risultato con il campo bestLap nel formato corretto
       const formattedResult = {
-        ...result,
+        ...withPublicPosition(result),
         bestLap: result.bestLap ? 
           (typeof result.bestLap === 'object' ? result.bestLap : { time: result.bestLap, number: null }) : 
           null
@@ -254,7 +255,7 @@ export const getQualifyingResults = async (req: Request, res: Response) => {
       if (!acc[cat]) {
         acc[cat] = [];
       }
-      acc[cat].push(result);
+      acc[cat].push(withPublicPosition(result));
       return acc;
     }, {});
 

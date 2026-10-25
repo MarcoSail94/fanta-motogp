@@ -131,17 +131,15 @@ export default function LineupPage() {
     }));
   };
 
-  // Helper per recuperare la posizione del pilota
-  const getRiderPosition = (riderId: string, category: string, session: string) => {
-    if (session === 'QUALIFYING') {
-      const results = qualiResultsData?.results?.[category] || [];
-      const res = results.find((r: any) => r.riderId === riderId);
-      return res?.position;
-    } else {
-      const results = raceResultsData?.results?.[session]?.[category] || [];
-      const res = results.find((r: any) => r.riderId === riderId);
-      return res?.position;
-    }
+  // Helper per recuperare il risultato del pilota: posizione se classificato, altrimenti lo status (DNS, DNF...)
+  const getRiderResultLabel = (riderId: string, category: string, session: string): string | null => {
+    const results = session === 'QUALIFYING'
+      ? qualiResultsData?.results?.[category] || []
+      : raceResultsData?.results?.[session]?.[category] || [];
+    const res = results.find((r: any) => r.riderId === riderId);
+    if (!res) return null;
+    if (res.position) return `${res.position}°`;
+    return res.status && res.status !== 'FINISHED' ? res.status : null;
   };
 
   const renderSessionPositions = (riderId: string, category: string) => {
@@ -152,18 +150,18 @@ export default function LineupPage() {
       { id: 'FP1', label: 'FP1' }
     ];
 
-    const hasAnySession = sessions.some(s => getRiderPosition(riderId, category, s.id));
+    const hasAnySession = sessions.some(s => getRiderResultLabel(riderId, category, s.id));
     if (!hasAnySession) return null;
 
     return (
       <Stack direction="row" spacing={1} sx={{ mt: 0.5, flexWrap: 'wrap', gap: 0.5 }}>
         {sessions.map(s => {
-          const pos = getRiderPosition(riderId, category, s.id);
-          if (!pos) return null;
+          const result = getRiderResultLabel(riderId, category, s.id);
+          if (!result) return null;
           return (
             <Tooltip title={s.id} key={s.id}>
               <Chip 
-                label={`${s.label}: ${pos}°`} 
+                label={`${s.label}: ${result}`} 
                 size="small" 
                 variant="outlined" 
                 sx={{ 

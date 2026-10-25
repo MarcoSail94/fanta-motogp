@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { AuthRequest } from '../middleware/auth';
 import { buildLeagueStandings, loadLeagueStandings } from '../services/standingsService';
 import { summarizeRaceCancellations } from '../services/raceCancellationService';
+import { toPublicPosition } from '../services/resultPositions';
 
 const prisma = new PrismaClient();
 
@@ -449,7 +450,7 @@ export const getLeagueRaceLineups = async (req: AuthRequest, res: Response) => {
     const raceResults = await prisma.raceResult.findMany({
       where: { raceId },
     });
-    const resultsMap = new Map(raceResults.map(r => [r.riderId, { position: r.position, status: r.status }]));
+    const resultsMap = new Map(raceResults.map(r => [r.riderId, { position: toPublicPosition(r.position), status: r.status }]));
 
     const formattedLineups = teams.map(team => {
       const lineup = team.lineups[0];
@@ -522,7 +523,7 @@ export const getLeagueRaceLineupsForWeb = async (req: AuthRequest, res: Response
         const raceResults = await prisma.raceResult.findMany({
             where: { raceId },
         });
-        const resultsMap = new Map(raceResults.map(r => [r.riderId, { position: r.position, status: r.status }]));
+        const resultsMap = new Map(raceResults.map(r => [r.riderId, { position: toPublicPosition(r.position), status: r.status }]));
 
         const formattedLineups = teams.map(team => {
             const isOwnTeam = team.user.id === userId;

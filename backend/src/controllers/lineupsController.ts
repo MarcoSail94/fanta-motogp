@@ -2,6 +2,7 @@
 import { Response } from 'express';
 import { PrismaClient, Category } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth';
+import { toPublicPosition } from '../services/resultPositions';
 
 const prisma = new PrismaClient();
 
@@ -53,7 +54,7 @@ export const getLineup = async (req: AuthRequest, res: Response) => {
             acc[result.riderId] = {};
         }
         const sessionKey = result.session === 'QUALIFYING' ? 'Q' : result.session;
-        acc[result.riderId][sessionKey] = result.position;
+        acc[result.riderId][sessionKey] = toPublicPosition(result.position);
         return acc;
     }, {} as Record<string, Record<string, number | null>>);
 

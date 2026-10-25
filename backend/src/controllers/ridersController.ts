@@ -2,6 +2,7 @@
 import { Request, Response } from 'express';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { validationResult } from 'express-validator';
+import { isClassifiedPosition, toPublicPosition, withPublicPosition } from '../services/resultPositions';
 
 const prisma = new PrismaClient();
 
@@ -307,15 +308,15 @@ export const getRiderStats = async (req: Request, res: Response) => {
       dnf: seasonResults.filter(r => r.status === 'DNF').length,
       avgPosition: seasonStats?.avgPosition || 0,
       points: seasonStats?.points || 0,
-      bestResult: Math.min(...seasonResults.filter(r => r.position).map(r => r.position!)),
-      worstResult: Math.max(...seasonResults.filter(r => r.position).map(r => r.position!)),
+      bestResult: Math.min(...seasonResults.filter(r => isClassifiedPosition(r.position)).map(r => r.position!)),
+      worstResult: Math.max(...seasonResults.filter(r => isClassifiedPosition(r.position)).map(r => r.position!)),
     };
 
     // Grafico posizioni
     const positionChart = seasonResults.map(result => ({
       round: result.race.round,
       race: result.race.name,
-      position: result.position || null,
+      position: toPublicPosition(result.position),
       status: result.status,
     }));
 
@@ -324,7 +325,7 @@ export const getRiderStats = async (req: Request, res: Response) => {
       season: targetSeason,
       stats,
       positionChart,
-      results: seasonResults,
+      results: seasonResults.map(withPublicPosition),
     });
   } catch (error) {
     console.error('Errore recupero statistiche pilota:', error);
