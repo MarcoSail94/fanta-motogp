@@ -84,9 +84,9 @@ describe('standingsService', () => {
     const beta = standings.find(team => team.teamId === 'beta');
     const gamma = standings.find(team => team.teamId === 'gamma');
 
-    expect(alpha).toMatchObject({ lastRacePoints: 10, gamesPlayed: 2, trend: 'down' });
-    expect(beta).toMatchObject({ lastRacePoints: null, gamesPlayed: 1, trend: 'up' });
-    expect(gamma).toMatchObject({ lastRacePoints: null, gamesPlayed: 0, trend: 'same' });
+    expect(alpha).toMatchObject({ lastRacePoints: 10, gamesPlayed: 2, trend: 'down', positionChange: -1 });
+    expect(beta).toMatchObject({ lastRacePoints: null, gamesPlayed: 1, trend: 'up', positionChange: 1 });
+    expect(gamma).toMatchObject({ lastRacePoints: null, gamesPlayed: 0, trend: 'same', positionChange: 0 });
   });
 
   it('does not expose a trend before a previous race exists', () => {
@@ -95,6 +95,6 @@ describe('standingsService', () => {
       scores: team.scores.filter(item => item.raceId === 'race-1')
     }));
 
-    expect(buildLeagueStandings(firstRoundTeams).every(team => team.trend === null)).toBe(true);
+    expect(buildLeagueStandings(firstRoundTeams).every(team => team.trend === null && team.positionChange === null)).toBe(true);
   });
 });

@@ -7,6 +7,7 @@ import {
   useMediaQuery, useTheme
 } from '@mui/material';
 import { Block, EmojiEvents, ExpandMore, ExpandLess, Info } from '@mui/icons-material';
+import { CATEGORY_LABELS } from '../utils/raceCancellation';
 
 interface ScoreBreakdownProps {
   open: boolean;
@@ -20,6 +21,87 @@ function formatPosition(value: unknown) {
   const text = String(value);
   if (text.endsWith('°')) return text;
   return Number.isFinite(Number(text)) ? `${text}°` : text;
+}
+
+function hasValue(value: unknown) {
+  return formatPosition(value) !== '-';
+}
+
+function ScoreChip({ label, value, color }: { label: string; value: string | number; color?: string }) {
+  return (
+    <Chip
+      size="small"
+      label={`${label} ${value}`}
+      sx={{
+        height: 22,
+        fontSize: '0.75rem',
+        fontWeight: 700,
+        bgcolor: 'rgba(255,255,255,0.06)',
+        color: color || 'text.secondary',
+      }}
+    />
+  );
+}
+
+// Versione mobile: una card per pilota al posto della tabella da scorrere di lato
+function RiderScoreCard({ score, accent, hasScores }: { score: any; accent: string; hasScores: boolean }) {
+  const excluded = Boolean(score.excluded);
+  const showSprint = score.riderCategory === 'MOTOGP' && hasValue(score.sprintPosition);
+
+  return (
+    <Box
+      sx={{
+        p: 1.25,
+        bgcolor: 'rgba(255,255,255,0.045)',
+        border: '1px solid rgba(255,255,255,0.10)',
+        borderLeftWidth: 3,
+        borderLeftColor: accent,
+        opacity: excluded ? 0.6 : 1,
+      }}
+    >
+      <Stack direction="row" justifyContent="space-between" alignItems="baseline" spacing={1}>
+        <Typography variant="body2" fontWeight={800} noWrap sx={{ minWidth: 0 }}>
+          {score.rider}{' '}
+          <Typography component="span" variant="caption" color="text.secondary">
+            {CATEGORY_LABELS[score.riderCategory as keyof typeof CATEGORY_LABELS] || score.riderCategory}
+          </Typography>
+        </Typography>
+        <Typography variant="subtitle2" fontWeight={900} sx={{ flexShrink: 0 }}>
+          {excluded ? 'escluso' : score.points === '-' ? '-' : `${score.points} pt`}
+        </Typography>
+      </Stack>
+
+      {excluded ? (
+        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.5, color: 'text.secondary' }}>
+          <Block sx={{ fontSize: 14 }} />
+          <Typography variant="caption">Gara annullata, non conta</Typography>
+        </Stack>
+      ) : (
+        <>
+          <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.25 }}>
+            Previsto {formatPosition(score.predicted)} · arrivato {hasScores ? formatPosition(score.actual) : 'in attesa'}
+            {showSprint && ` · Sprint ${formatPosition(score.sprintPosition)}`}
+          </Typography>
+          {hasScores && (
+            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
+              <ScoreChip label="Base" value={score.base} />
+              <ScoreChip
+                label="Malus"
+                value={`+${score.predictionMalus}`}
+                color={Number(score.predictionMalus) > 0 ? 'error.main' : undefined}
+              />
+              {Number(score.qualifyingBonus) < 0 && (
+                <ScoreChip label="Qual" value={score.qualifyingBonus} color="success.main" />
+              )}
+              {Number(score.sprintBonus) < 0 && (
+                <ScoreChip label="Sprint" value={score.sprintBonus} color="success.main" />
+              )}
+            </Stack>
+          )}
+        </>
+      )}
+    </Box>
+  );
 }
 
 export function ScoreBreakdownDialog({ open, onClose, lineupData }: ScoreBreakdownProps) {
@@ -126,6 +208,18 @@ export function ScoreBreakdownDialog({ open, onClose, lineupData }: ScoreBreakdo
           WebkitOverflowScrolling: 'touch',
         }}
       >
+        {isMobile ? (
+          <Stack spacing={1}>
+            {displayData.map((score: any, index: number) => (
+              <RiderScoreCard
+                key={index}
+                score={score}
+                accent={categoryColors[score.riderCategory] || '#E60023'}
+                hasScores={hasScores}
+              />
+            ))}
+          </Stack>
+        ) : (
         <TableContainer
           component={Paper}
           className="liquid-glass"
@@ -267,6 +361,7 @@ export function ScoreBreakdownDialog({ open, onClose, lineupData }: ScoreBreakdo
             </TableBody>
           </Table>
         </TableContainer>
+        )}
         
         {/* Info collassabile */}
         <Box mt={2}>

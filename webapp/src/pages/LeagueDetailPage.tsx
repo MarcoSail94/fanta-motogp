@@ -11,7 +11,7 @@ import {
   IconButton, Tooltip, useTheme, useMediaQuery
 } from '@mui/material';
 import {
-  TrendingUp, TrendingDown, Remove, Groups, Settings, Share, Lock,
+  Groups, Settings, Share, Lock,
   ContentCopy, NotificationsActive, EmojiEvents, WorkspacePremium,
   BarChart, Refresh, SportsMotorsports, Timer, Info, Flag, Block
 } from '@mui/icons-material';
@@ -34,6 +34,7 @@ import { LeagueSeasonReset } from '../components/LeagueSeasonReset';
 import { LeagueStatsTab } from '../components/league/LeagueStatsTab';
 import { LeagueTabPanel } from '../components/league/LeagueTabPanel';
 import { MobileStandingCard } from '../components/league/MobileStandingCard';
+import { PositionChange } from '../components/league/PositionChange';
 import { MetricTile } from '../components/ui/MetricTile';
 import type { LeagueStanding } from '../components/league/MobileStandingCard';
 import { getGpDate, getLineupDeadlineDate, getRaceEndDate } from '../utils/raceDates';
@@ -636,16 +637,18 @@ export default function LeagueDetailPage() {
 
       {/* Tab: Classifica - Responsive */}
       <LeagueTabPanel value={selectedTab} index={0}>
+        {standings.length > 0 && (
+          <Alert severity="info" variant="outlined" icon={<Info fontSize="small" />} sx={{ mb: 1.5, py: 0 }}>
+            Vince chi fa meno punti
+          </Alert>
+        )}
         {isMobile ? (
           // Layout Mobile - Cards
           <Box>
             {standings.map((standing: any, index: number) => {
               const position = index + 1;
               const isUserTeam = standing.userId === user?.id;
-              const prevPoints = index > 0 ? standings[index - 1].totalPoints : null;
-              const nextPoints = index < standings.length - 1 ? standings[index + 1].totalPoints : null;
-              const gapPrev = prevPoints !== null ? standing.totalPoints - prevPoints : null;
-              const gapNext = nextPoints !== null ? nextPoints - standing.totalPoints : null;
+              const gapFromLeader = index > 0 ? standing.totalPoints - standings[0].totalPoints : null;
 
               return (
                 <MobileStandingCard
@@ -653,8 +656,7 @@ export default function LeagueDetailPage() {
                   standing={standing}
                   position={position}
                   isUserTeam={isUserTeam}
-                  gapPrev={gapPrev}
-                  gapNext={gapNext}
+                  gapFromLeader={gapFromLeader}
                 />
               );
             })}
@@ -669,10 +671,10 @@ export default function LeagueDetailPage() {
                   <TableCell>Team</TableCell>
                   <TableCell>Manager</TableCell>
                   <TableCell align="right">Punti Totali</TableCell>
-                  <TableCell align="right">Ultima Gara</TableCell>
+                  <TableCell align="right">Ultima giornata</TableCell>
                   <TableCell align="right">Gap Prec.</TableCell>
                   <TableCell align="right">Gap Succ.</TableCell>
-                  <TableCell align="center">Trend</TableCell>
+                  <TableCell align="center">Posizioni</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -710,16 +712,11 @@ export default function LeagueDetailPage() {
                         <Typography variant="h6">{standing.totalPoints || 0}</Typography>
                       </TableCell>
                       <TableCell align="right">
-                        {standing.lastRacePoints ? (
-                          <Chip
-                            label={`+${standing.lastRacePoints}`}
-                            size="small"
-                            color="success"
-                            variant="outlined"
-                          />
-                        ) : (
-                          <Typography variant="body2" color="text.secondary">-</Typography>
-                        )}
+                        <Typography variant="body2" color="text.secondary">
+                          {standing.lastRacePoints !== null && standing.lastRacePoints !== undefined
+                            ? `${standing.lastRacePoints} pt`
+                            : '-'}
+                        </Typography>
                       </TableCell>
                       <TableCell align="right">
                         {gapPrev !== null ? (
@@ -740,9 +737,7 @@ export default function LeagueDetailPage() {
                         )}
                       </TableCell>
                       <TableCell align="center">
-                        {standing.trend === 'up' && <TrendingUp color="success" />}
-                        {standing.trend === 'down' && <TrendingDown color="error" />}
-                        {standing.trend === 'same' && <Remove color="disabled" />}
+                        <PositionChange value={standing.positionChange} />
                       </TableCell>
                     </TableRow>
                   );

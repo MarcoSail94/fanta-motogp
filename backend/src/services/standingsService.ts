@@ -31,6 +31,8 @@ export interface LeagueStanding {
   gamesPlayed: number;
   position: number;
   trend: StandingTrend;
+  // Posizioni guadagnate (positivo) o perse (negativo) con l'ultima giornata
+  positionChange: number | null;
 }
 
 export const calculateTotalPoints = (
@@ -109,7 +111,8 @@ export const buildLeagueStandings = (
           : null,
         gamesPlayed: new Set(team.scores.map(score => score.raceId)).size,
         position: 0,
-        trend: null as StandingTrend
+        trend: null as StandingTrend,
+        positionChange: null as number | null
       };
     })
     .sort(compareStandings)
@@ -124,7 +127,9 @@ export const buildLeagueStandings = (
         else trend = 'same';
       }
 
-      return { ...team, position, trend };
+      const positionChange = previousPosition !== undefined ? previousPosition - position : null;
+
+      return { ...team, position, trend, positionChange };
     });
 };
 

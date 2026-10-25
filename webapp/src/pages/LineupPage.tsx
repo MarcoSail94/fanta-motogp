@@ -6,16 +6,82 @@ import { getTeamById, getLineup, setLineup, getRaceById, getRaceResults, getQual
 import { queryKeys } from '../services/queryKeys';
 import { useNotification } from '../contexts/NotificationContext';
 import {
-  Box, Typography, Grid, Paper, Button, Avatar, TextField, 
-  Chip, Stack, Card, CardActionArea, Skeleton, Tooltip
+  Box, Typography, Grid, Paper, Button, Avatar, IconButton, InputBase,
+  Chip, Stack, Card, CardActionArea, Skeleton, Tooltip, ToggleButton, ToggleButtonGroup
 } from '@mui/material';
-import { CheckCircle, Save } from '@mui/icons-material';
+import { AccessTime, Add, CheckCircle, Remove, Save } from '@mui/icons-material';
+import { format } from 'date-fns';
+import { it } from 'date-fns/locale';
 import { MobileActionBar } from '../components/ui/MobileActionBar';
 import { PageHeader } from '../components/ui/PageHeader';
+import { getLineupDeadlineDate } from '../utils/raceDates';
 
 // Helper per categoria
 const CATEGORIES = ['MOTOGP', 'MOTO2', 'MOTO3'];
 const CAT_COLORS: Record<string, string> = { MOTOGP: '#E60023', MOTO2: '#FF6B00', MOTO3: '#1976D2' };
+const SESSIONS = [
+  { id: 'QUALIFYING', label: 'Q' },
+  { id: 'FP2', label: 'FP2' },
+  { id: 'PR', label: 'PR' },
+  { id: 'FP1', label: 'FP1' }
+];
+const MIN_POSITION = 1;
+const MAX_POSITION = 30;
+
+type SortMode = 'form' | 'number';
+
+interface SessionResult {
+  id: string;
+  label: string;
+  position: number | null;
+  text: string;
+}
+
+function formatCountdown(deadline: Date, now: Date) {
+  const diff = deadline.getTime() - now.getTime();
+  if (diff <= 0) return 'Schieramento chiuso';
+  const minutes = Math.floor(diff / 60000);
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  if (days > 0) return `chiude tra ${days}g ${hours}h`;
+  if (hours > 0) return `chiude tra ${hours}h ${minutes % 60}m`;
+  return `chiude tra ${minutes}m`;
+}
+
+// Selettore della posizione prevista: −/+ comodi col pollice, ma si può anche scrivere il numero
+function PositionStepper({ value, onChange, status }: {
+  value: string;
+  onChange: (value: string) => void;
+  status: 'ok' | 'missing' | 'duplicate';
+}) {
+  const numeric = parseInt(value);
+  const step = (delta: number) => {
+    const base = isNaN(numeric) ? (delta > 0 ? MIN_POSITION - 1 : MIN_POSITION + 1) : numeric;
+    onChange(String(Math.min(MAX_POSITION, Math.max(MIN_POSITION, base + delta))));
+  };
+  const borderColor = status === 'missing' ? 'error.main' : status === 'duplicate' ? 'warning.main' : 'rgba(255,255,255,0.2)';
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', border: '1px solid', borderColor, borderRadius: 1, flexShrink: 0 }}>
+      <IconButton size="small" aria-label="Posizione precedente" onClick={() => step(-1)} disabled={numeric <= MIN_POSITION}>
+        <Remove fontSize="small" />
+      </IconButton>
+      <InputBase
+        value={value}
+        placeholder="–"
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, 2))}
+        inputProps={{
+          inputMode: 'numeric',
+          'aria-label': 'Posizione prevista',
+          style: { width: 26, textAlign: 'center', fontWeight: 800, padding: 0 }
+        }}
+      />
+      <IconButton size="small" aria-label="Posizione successiva" onClick={() => step(1)} disabled={numeric >= MAX_POSITION}>
+        <Add fontSize="small" />
+      </IconButton>
+    </Box>
+  );
+}
 
 export default function LineupPage() {
   const { teamId, raceId } = useParams();
@@ -25,6 +91,13 @@ export default function LineupPage() {
 
   // State locale per il lineup: { riderId: { selected: boolean, pos: string } }
   const [selection, setSelection] = useState<Record<string, { selected: boolean; pos: string }>>({});
+  const [sortMode, setSortMode] = useState<SortMode>('form');
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const { data: teamData, isLoading: l1 } = useQuery({ queryKey: queryKeys.teams.detail(teamId), queryFn: () => getTeamById(teamId!) });
   const { data: raceData, isLoading: l2 } = useQuery({ queryKey: queryKeys.races.detail(raceId), queryFn: () => getRaceById(raceId!) });
@@ -80,7 +153,7 @@ export default function LineupPage() {
         
         // Check posizione
         const p = parseInt(val.pos);
-        if (!val.pos || isNaN(p) || p < 1 || p > 30) errors.push(`Posizione mancante per ${rider?.name}`);
+        if (!val.pos || isNaN(p) || p < MIN_POSITION || p > MAX_POSITION) errors.push(`Posizione mancante per ${rider?.name}`);
       }
     });
 
@@ -131,46 +204,66 @@ export default function LineupPage() {
     }));
   };
 
-  // Helper per recuperare il risultato del pilota: posizione se classificato, altrimenti lo status (DNS, DNF...)
-  const getRiderResultLabel = (riderId: string, category: string, session: string): string | null => {
-    const results = session === 'QUALIFYING'
-      ? qualiResultsData?.results?.[category] || []
-      : raceResultsData?.results?.[session]?.[category] || [];
-    const res = results.find((r: any) => r.riderId === riderId);
-    if (!res) return null;
-    if (res.position) return `${res.position}°`;
-    return res.status && res.status !== 'FINISHED' ? res.status : null;
+  // Risultati del pilota nelle sessioni del weekend: posizione se classificato, altrimenti lo status (DNS, DNF...)
+  const getRiderSessionResults = (riderId: string, category: string): SessionResult[] =>
+    SESSIONS.flatMap(session => {
+      const results = session.id === 'QUALIFYING'
+        ? qualiResultsData?.results?.[category] || []
+        : raceResultsData?.results?.[session.id]?.[category] || [];
+      const res = results.find((r: any) => r.riderId === riderId);
+      if (!res) return [];
+      if (res.position) return [{ ...session, position: res.position, text: `${res.position}°` }];
+      if (res.status && res.status !== 'FINISHED') return [{ ...session, position: null, text: res.status }];
+      return [];
+    });
+
+  const getBestPosition = (results: SessionResult[]) => {
+    const positions = results.map(r => r.position).filter((p): p is number => p !== null);
+    return positions.length > 0 ? Math.min(...positions) : null;
+  };
+
+  // Forma weekend: prima chi ha il miglior risultato tra Q, FP2, PR e FP1, poi chi non ne ha
+  const sortRiders = (categoryRiders: any[], category: string) => {
+    if (sortMode === 'number') return [...categoryRiders].sort((a, b) => a.number - b.number);
+    return [...categoryRiders].sort((a, b) => {
+      const bestA = getBestPosition(getRiderSessionResults(a.id, category)) ?? Number.POSITIVE_INFINITY;
+      const bestB = getBestPosition(getRiderSessionResults(b.id, category)) ?? Number.POSITIVE_INFINITY;
+      return bestA !== bestB ? bestA - bestB : a.number - b.number;
+    });
+  };
+
+  // Altri piloti della stessa categoria con la stessa posizione prevista (consentito, ma probabilmente una svista)
+  const getDuplicateRiders = (riderId: string, category: string) => {
+    const pos = selection[riderId]?.pos;
+    if (!pos) return [];
+    return riders.filter((r: any) =>
+      r.id !== riderId && r.category === category && selection[r.id]?.selected && selection[r.id]?.pos === pos
+    );
   };
 
   const renderSessionPositions = (riderId: string, category: string) => {
-    const sessions = [
-      { id: 'QUALIFYING', label: 'Q' },
-      { id: 'FP2', label: 'FP2' },
-      { id: 'PR', label: 'PR' },
-      { id: 'FP1', label: 'FP1' }
-    ];
-
-    const hasAnySession = sessions.some(s => getRiderResultLabel(riderId, category, s.id));
-    if (!hasAnySession) return null;
+    const results = getRiderSessionResults(riderId, category);
+    if (results.length === 0) return null;
+    const best = getBestPosition(results);
 
     return (
-      <Stack direction="row" spacing={1} sx={{ mt: 0.5, flexWrap: 'wrap', gap: 0.5 }}>
-        {sessions.map(s => {
-          const result = getRiderResultLabel(riderId, category, s.id);
-          if (!result) return null;
+      <Stack direction="row" spacing={0.5} useFlexGap sx={{ mt: 0.75, flexWrap: 'wrap' }}>
+        {results.map(result => {
+          const isBest = result.position !== null && result.position === best;
+          const notClassified = result.position === null;
           return (
-            <Tooltip title={s.id} key={s.id}>
-              <Chip 
-                label={`${s.label}: ${result}`} 
-                size="small" 
-                variant="outlined" 
-                sx={{ 
-                  fontSize: '0.65rem', 
-                  height: '20px', 
-                  borderColor: 'rgba(255,255,255,0.2)',
-                  color: 'text.secondary',
-                  '& .MuiChip-label': { px: 1 }
-                }} 
+            <Tooltip title={isBest ? `${result.id} · miglior risultato del weekend` : result.id} key={result.id}>
+              <Chip
+                label={`${result.label} ${result.text}`}
+                size="small"
+                sx={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  height: 22,
+                  bgcolor: isBest ? 'rgba(0,230,118,0.14)' : 'rgba(255,255,255,0.06)',
+                  color: isBest ? 'success.main' : notClassified ? 'error.main' : 'text.secondary',
+                  '& .MuiChip-label': { px: 0.9 }
+                }}
               />
             </Tooltip>
           );
@@ -189,7 +282,16 @@ export default function LineupPage() {
     });
   };
 
-  
+  const race = raceData?.race;
+  const deadline = race ? getLineupDeadlineDate(race) : null;
+  const isClosed = deadline ? now >= deadline : false;
+  const duplicateCount = riders.filter((r: any) =>
+    selection[r.id]?.selected && getDuplicateRiders(r.id, r.category).length > 0
+  ).length;
+  const readyHelper = duplicateCount > 0
+    ? `Pronta · ${duplicateCount} piloti con posizione ripetuta`
+    : 'Pronta per il salvataggio';
+
   return (
     <Box className="fade-in" sx={{ pb: { xs: 20, md: 0 } }}>
       <PageHeader
@@ -215,6 +317,19 @@ export default function LineupPage() {
                 variant="outlined"
              />
            </Stack>
+           {deadline && (
+             <Box sx={{ mt: 0.5 }}>
+               <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: isClosed ? 'error.main' : 'warning.main' }}>
+                 <AccessTime sx={{ fontSize: 16 }} />
+                 <Typography variant="body2" fontWeight={800} color="inherit">
+                   {formatCountdown(deadline, now)}
+                 </Typography>
+               </Stack>
+               <Typography variant="caption" color="text.secondary">
+                 Deadline {format(deadline, 'EEEE d MMM, HH:mm', { locale: it })} (inizio {race?.sprintDate ? 'Sprint' : 'gara'})
+               </Typography>
+             </Box>
+           )}
            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
              {CATEGORIES.map((cat) => (
                <Chip
@@ -243,10 +358,24 @@ export default function LineupPage() {
         </Button>
       </Paper>
 
+      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ mb: 2 }}>
+        <Typography variant="body2" color="text.secondary">Ordina per</Typography>
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={sortMode}
+          onChange={(_, value: SortMode | null) => value && setSortMode(value)}
+          aria-label="Ordinamento piloti"
+        >
+          <ToggleButton value="form">Forma weekend</ToggleButton>
+          <ToggleButton value="number">Numero</ToggleButton>
+        </ToggleButtonGroup>
+      </Stack>
+
       {/* Griglia Piloti per Categoria */}
       <Grid container spacing={3}>
         {CATEGORIES.map(cat => {
-          const catRiders = riders.filter((r:any) => r.category === cat);
+          const catRiders = sortRiders(riders.filter((r:any) => r.category === cat), cat);
           return (
             <Grid size={{ xs: 12, md: 4}} key={cat}>
               <Paper sx={{ 
@@ -268,6 +397,9 @@ export default function LineupPage() {
                 <Stack spacing={2}>
                   {catRiders.map((rider:any) => {
                     const isSelected = selection[rider.id]?.selected;
+                    const pos = selection[rider.id]?.pos || '';
+                    const missingPosition = Boolean(isSelected && !pos);
+                    const duplicates = isSelected ? getDuplicateRiders(rider.id, cat) : [];
                     
                     return (
                       <Card 
@@ -300,22 +432,24 @@ export default function LineupPage() {
                             </CardActionArea>
 
                             {isSelected && (
-                              <Box width={{ xs: 80, sm: 90 }} sx={{ flexShrink: 0, ml: { xs: 0, sm: 1 } }}>
-                                <TextField
-                                  label="Pos."
-                                  size="small"
-                                  type="number"
-                                  variant="outlined"
-                                  value={selection[rider.id]?.pos}
-                                  onChange={(e) => handlePosChange(rider.id, e.target.value)}
-                                  InputProps={{ sx: { borderRadius: 1 } }}
-                                  InputLabelProps={{ sx: { fontSize: { xs: '0.8rem', sm: '1rem' } } }}
-                                  inputProps={{ min: 1, max: 30, style: { textAlign: 'center', fontWeight: 'bold', padding: '8px 4px' } }}
-                                  error={!selection[rider.id]?.pos}
-                                />
-                              </Box>
+                              <PositionStepper
+                                value={pos}
+                                onChange={(value) => handlePosChange(rider.id, value)}
+                                status={missingPosition ? 'missing' : duplicates.length > 0 ? 'duplicate' : 'ok'}
+                              />
                             )}
                           </Box>
+                          {(missingPosition || duplicates.length > 0) && (
+                            <Typography
+                              variant="caption"
+                              color={missingPosition ? 'error.main' : 'warning.main'}
+                              sx={{ display: 'block', px: { xs: 2, sm: 2.5 }, pb: 1, mt: -0.5 }}
+                            >
+                              {missingPosition
+                                ? 'Imposta la posizione prevista'
+                                : `Posizione ${pos} già usata da ${duplicates.map((d: any) => d.name).join(', ')}`}
+                            </Typography>
+                          )}
                       </Card>
                     )
                   })}
@@ -329,7 +463,7 @@ export default function LineupPage() {
       <MobileActionBar
         label="Lineup"
         value={`${stats.counts.total}/6 piloti`}
-        helper={stats.errors[0] || 'Pronta per il salvataggio'}
+        helper={stats.errors[0] || readyHelper}
         actionLabel="Salva"
         loadingLabel="Salvataggio..."
         onAction={handleSaveLineup}
