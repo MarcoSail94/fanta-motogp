@@ -1,76 +1,42 @@
 // backend/src/services/raceWeekendDetector.ts
 import { PrismaClient } from '@prisma/client';
+import { findRaceWeekend, getRaceWeekendBounds } from './raceWeekendWindow';
 
 const prisma = new PrismaClient();
 
 export class RaceWeekendDetector {
   /**
    * Verifica se siamo attualmente in un weekend di gara
-   * Logica: controlla se la prossima gara è nei prossimi 3 giorni
-   * o se l'ultima gara è stata negli ultimi 2 giorni
+   * Logica: il weekend (startDate-endDate) inizia entro un giorno
+   * o è finito da meno di due giorni
    */
   async isRaceWeekend(): Promise<{ isRaceWeekend: boolean; raceId?: string; race?: any }> {
     const now = new Date();
+    const { startsBefore, endsAfter } = getRaceWeekendBounds(now);
 
-    const nextRace = await prisma.race.findFirst({
+    const candidates = await prisma.race.findMany({
       where: {
-        gpDate: {
-          gte: now
-        }
+        startDate: { lte: startsBefore },
+        endDate: { gte: endsAfter }
       },
       orderBy: {
-        gpDate: 'asc'
+        startDate: 'asc'
       }
     });
 
-    if (nextRace) {
-      const daysUntilRace = this.getDaysDifference(now, nextRace.gpDate);
-      
-      if (daysUntilRace <= 3) {
-        console.log(`✅ Weekend di gara in corso: ${nextRace.name} (tra ${daysUntilRace} giorni)`);
-        return { 
-          isRaceWeekend: true, 
-          raceId: nextRace.id,
-          race: nextRace
-        };
-      }
-    }
+    const race = findRaceWeekend(candidates, now);
 
-    const lastRace = await prisma.race.findFirst({
-      where: {
-        gpDate: {
-          lt: now
-        }
-      },
-      orderBy: {
-        gpDate: 'desc'
-      }
-    });
-
-    if (lastRace) {
-      const daysSinceRace = this.getDaysDifference(lastRace.gpDate, now);
-      
-      if (daysSinceRace <= 2) {
-        console.log(`✅ Weekend di gara appena concluso: ${lastRace.name} (${daysSinceRace} giorni fa)`);
-        return { 
-          isRaceWeekend: true, 
-          raceId: lastRace.id,
-          race: lastRace
-        };
-      }
+    if (race) {
+      console.log(`✅ Weekend di gara: ${race.name} (${race.startDate.toISOString()} - ${race.endDate.toISOString()})`);
+      return {
+        isRaceWeekend: true,
+        raceId: race.id,
+        race
+      };
     }
 
     console.log(`🏖️ Nessuna gara questo weekend`);
     return { isRaceWeekend: false };
-  }
-
-  /**
-   * Calcola la differenza in giorni tra due date
-   */
-  private getDaysDifference(date1: Date, date2: Date): number {
-    const diffTime = Math.abs(date2.getTime() - date1.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
   }
 }
 

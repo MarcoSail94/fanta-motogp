@@ -168,12 +168,12 @@ export class MotoGPApiService {
         let sprintDate: Date | null = null;
         const broadcasts = event.broadcasts || [];
 
-        // Cerchiamo la Gara MotoGP
-        const raceSession = broadcasts.find((s: any) => 
-            (s.shortname === 'RAC' || s.kind === 'RACE') && 
-            s.category?.acronym === 'MGP' && 
-            s.type === 'SESSION' // Assicuriamoci sia una sessione
-        );
+        // Cerchiamo la Gara MotoGP. Anche la Sprint (SPR) ha kind RACE e viene prima della gara:
+        // si cerca per shortname RAC e si ricade su kind RACE solo escludendo la Sprint
+        const isMotoGpSession = (s: any) => s.category?.acronym === 'MGP' && s.type === 'SESSION';
+        const raceSession =
+            broadcasts.find((s: any) => isMotoGpSession(s) && s.shortname === 'RAC') ||
+            broadcasts.find((s: any) => isMotoGpSession(s) && s.kind === 'RACE' && s.shortname !== 'SPR');
         
         if (raceSession && raceSession.date_start) {
             raceDate = new Date(raceSession.date_start);
