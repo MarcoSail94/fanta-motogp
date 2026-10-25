@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
+import { categoryLabel } from '../../utils/categories';
 
 type CategoryName = 'MOTOGP' | 'MOTO2' | 'MOTO3';
 
@@ -178,7 +179,7 @@ export function LeagueStatsTab({ leagueData, league, isMobile }: LeagueStatsTabP
                         color="text.secondary"
                         sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}
                       >
-                        {category}
+                        {categoryLabel(category)}
                       </Typography>
                       <Typography
                         variant={isMobile ? 'h5' : 'h4'}

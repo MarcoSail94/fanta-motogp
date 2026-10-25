@@ -59,6 +59,7 @@ import { it } from 'date-fns/locale';
 import { EmptyState } from '../components/ui/EmptyState';
 import { MetricTile } from '../components/ui/MetricTile';
 import { getGpDate, getSprintDate } from '../utils/raceDates';
+import { categoryLabel } from '../utils/categories';
 import { CATEGORY_LABELS, SESSION_LABELS, getRaceCancellationNotice, isSessionCancelled } from '../utils/raceCancellation';
 import type { SessionType } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -274,7 +275,7 @@ function CategoryFilter({
             }}
           />
           <Typography variant="caption" fontWeight="inherit" noWrap>
-            {category}
+            {categoryLabel(category)}
           </Typography>
         </FilterButton>
       ))}
@@ -692,7 +693,7 @@ export default function RaceDetailPage() {
           <MetricTile label="Sprint" value={sprintDate ? format(sprintDate, 'dd MMM', { locale: it }) : '-'} helper={hasSprint ? 'weekend sprint' : 'non prevista'} icon={<Speed />} tone={hasSprint ? 'warning' : 'info'} />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <MetricTile label="Risultati" value={categoryResults.length || '-'} helper={`${selectedSession.toUpperCase()} ${selectedCategory}`} icon={<EmojiEvents />} tone={categoryResults.length ? 'success' : 'primary'} />
+          <MetricTile label="Risultati" value={categoryResults.length || '-'} helper={`${selectedSession.toUpperCase()} ${categoryLabel(selectedCategory)}`} icon={<EmojiEvents />} tone={categoryResults.length ? 'success' : 'primary'} />
         </Grid>
       </Grid>
 
@@ -842,7 +843,7 @@ export default function RaceDetailPage() {
             <EmptyState
               icon={<SportsScore sx={{ fontSize: 54 }} />}
               title="Risultati non disponibili"
-              description={`Non ci sono ancora dati per ${selectedSession.toUpperCase()} ${selectedCategory}.`}
+              description={`Non ci sono ancora dati per ${selectedSession.toUpperCase()} ${categoryLabel(selectedCategory)}.`}
             />
           )}
         </TabPanel>
@@ -905,7 +906,7 @@ export default function RaceDetailPage() {
                 <Grid key={category} size={{ xs: 12, md: 4 }}>
                   <Paper sx={{ p: 2, height: '100%' }}>
                     <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-                      <Typography fontWeight={900}>{category}</Typography>
+                      <Typography fontWeight={900}>{categoryLabel(category)}</Typography>
                       <Chip size="small" label={`${raceResults.length} piloti`} />
                     </Stack>
                     <Divider sx={{ mb: 1.5 }} />

@@ -15,6 +15,7 @@ import { it } from 'date-fns/locale';
 import { MobileActionBar } from '../components/ui/MobileActionBar';
 import { PageHeader } from '../components/ui/PageHeader';
 import { getLineupDeadlineDate } from '../utils/raceDates';
+import { categoryLabel } from '../utils/categories';
 
 // Helper per categoria
 const CATEGORIES = ['MOTOGP', 'MOTO2', 'MOTO3'];
@@ -182,7 +183,7 @@ export default function LineupPage() {
       ).length;
       
       if (currentCatCount >= 2) {
-        notify(`Hai già selezionato 2 piloti per ${category}`, 'warning');
+        notify(`Hai già selezionato 2 piloti per ${categoryLabel(category)}`, 'warning');
         return;
       }
     }
@@ -335,7 +336,7 @@ export default function LineupPage() {
                <Chip
                  key={cat}
                  size="small"
-                 label={`${cat} ${stats.counts[cat as keyof typeof stats.counts]}/2`}
+                 label={`${categoryLabel(cat)} ${stats.counts[cat as keyof typeof stats.counts]}/2`}
                  color={stats.counts[cat as keyof typeof stats.counts] === 2 ? 'success' : 'default'}
                  variant="outlined"
                />
@@ -385,7 +386,7 @@ export default function LineupPage() {
               }}>
                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                   <Typography variant="h6" sx={{ color: CAT_COLORS[cat], fontWeight: 'bold' }}>
-                    {cat}
+                    {categoryLabel(cat)}
                   </Typography>
                   <Chip 
                     label={`${stats.counts[cat as keyof typeof stats.counts]}/2`} 

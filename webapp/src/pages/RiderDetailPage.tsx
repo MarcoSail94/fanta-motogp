@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import { AccountBalanceWallet, EmojiEvents, Flag, SportsMotorsports, Timeline } from '@mui/icons-material';
 import { MetricTile } from '../components/ui/MetricTile';
+import { categoryLabel } from '../utils/categories';
 
 export default function RiderDetailPage() {
   const { riderId } = useParams<{ riderId: string }>();
@@ -92,7 +93,7 @@ export default function RiderDetailPage() {
           </Avatar>
           <Box sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
-              <Chip label={rider.category} size="small" sx={{ bgcolor: `${accent}33`, color: 'white' }} />
+              <Chip label={categoryLabel(rider.category)} size="small" sx={{ bgcolor: `${accent}33`, color: 'white' }} />
               <Chip label={rider.riderType} size="small" variant="outlined" />
             </Stack>
             <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 900, letterSpacing: 1.8 }}>
@@ -140,7 +141,7 @@ export default function RiderDetailPage() {
               {[
                 ['Categoria', rider.category],
                 ['Team', rider.team],
-                ['Nazionalita', rider.nationality || '-'],
+                ['Nazionalità', rider.nationality || '-'],
                 ['Tipo', rider.riderType],
               ].map(([label, value]) => (
                 <Box

@@ -12,6 +12,7 @@ router.get('/past', racesController.getPastRaces);
 router.get('/is-race-weekend', racesController.checkIsRaceWeekend);
 router.get('/calendar/:year', racesController.getRaceCalendar);
 router.get('/latest-scores-status', authenticate, racesController.getLatestRaceScoresStatus);
+router.get('/my-scores/:year', authenticate, racesController.getMyRaceScores);
 router.get('/:raceId', racesController.getRaceById);
 router.get('/:raceId/results', racesController.getRaceResults);
 router.get('/:raceId/qualifying', racesController.getQualifyingResults);

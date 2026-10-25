@@ -1,6 +1,6 @@
 // webapp/src/pages/LeagueDetailPage.tsx
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Box, Typography, Card, CardContent, Grid, Button, Chip, Avatar, Table,
@@ -89,11 +89,13 @@ export default function LeagueDetailPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
-  const [selectedTab, setSelectedTab] = useState(0);
+  // ?tab=lineup&race=ID apre direttamente le formazioni di una gara (es. dalla card "La tua giornata")
+  const [searchParams] = useSearchParams();
+  const [selectedTab, setSelectedTab] = useState(() => (searchParams.get('tab') === 'lineup' ? 1 : 0));
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
   const [selectedLineup, setSelectedLineup] = useState<any>(null);
-  const [selectedRaceId, setSelectedRaceId] = useState<string | null>(null);
+  const [selectedRaceId, setSelectedRaceId] = useState<string | null>(() => searchParams.get('race'));
   const [isLocked, setIsLocked] = useState(false);
   const currentYear = new Date().getFullYear();
 
@@ -433,7 +435,7 @@ export default function LeagueDetailPage() {
           <MetricTile
             label="Deadline"
             value={deadlineValue}
-            helper={nextRace ? 'prossima gara' : 'nessuna gara'}
+            helper={nextRace ? (isLocked ? 'gara in corso' : 'prossima gara') : 'nessuna gara'}
             icon={<Timer />}
             tone={isLocked ? 'error' : 'success'}
           />

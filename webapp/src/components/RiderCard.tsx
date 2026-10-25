@@ -3,6 +3,7 @@ import { Card, CardActionArea, CardMedia, Typography, Box, Chip, Stack, Divider 
 import { useNavigate } from 'react-router-dom';
 import { Euro, Speed, Star } from '@mui/icons-material';
 import type { Rider } from '../types';
+import { categoryLabel } from '../utils/categories';
 
 const categoryColors = {
   MOTOGP: '#E60023',
@@ -181,7 +182,7 @@ export function RiderCard({ rider }: { rider: Rider }) {
             </Typography>
             <Stack direction="row" spacing={1}>
               <Chip
-                label={rider.category}
+                label={categoryLabel(rider.category)}
                 size="small"
                 sx={{
                   backgroundColor: 'rgba(255,255,255,0.2)',

@@ -149,6 +149,11 @@ export const getQualifyingResults = async (raceId: string) => {
   return response.data;
 };
 
+export const getMyRaceScores = async (year: number) => {
+  const response = await api.get(`/races/my-scores/${year}`);
+  return response.data;
+};
+
 export const getLatestRaceScoresStatus = async () => {
   const response = await api.get('/races/latest-scores-status');
   return response.data;

@@ -18,7 +18,6 @@ import {
   AccessTime,
   Add,
   ArrowForward,
-  Assessment,
   EmojiEvents,
   Flag,
   Groups,
@@ -27,11 +26,12 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { differenceInDays, differenceInHours, differenceInMinutes } from 'date-fns';
-import { ActionBanner } from '../components/ui/ActionBanner';
+import { RoundRecapCard } from '../components/RoundRecapCard';
 import { EmptyState } from '../components/ui/EmptyState';
 import { MetricTile } from '../components/ui/MetricTile';
 import { PageHeader } from '../components/ui/PageHeader';
 import { getLineupDeadlineDate } from '../utils/raceDates';
+import type { RoundSummary } from '../types';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -148,24 +148,13 @@ export default function HomePage() {
 
       <Stack spacing={2.5}>
         {scoresStatus?.hasNewScores && (
-          <ActionBanner
-            tone="success"
-            icon={<Assessment />}
-            title="Fanta punteggi aggiornati"
-            description={
-              <>
-                I punteggi del <strong>{scoresStatus.lastRaceName}</strong> sono disponibili.
-              </>
-            }
-            actionLabel={leagues.length === 1 ? 'Vedi classifica' : 'Vedi team'}
-            onAction={() => {
-              if (leagues.length === 1) {
-                navigate(`/leagues/${leagues[0].id}`);
-              } else {
-                navigate('/teams');
-              }
-            }}
-          />
+          <Grid container spacing={2}>
+            {scoresStatus.summaries?.map((summary: RoundSummary) => (
+              <Grid key={summary.teamId} size={{ xs: 12, md: scoresStatus.summaries.length > 1 ? 6 : 12 }}>
+                <RoundRecapCard summary={summary} raceId={scoresStatus.lastRaceId} raceName={scoresStatus.lastRaceName} />
+              </Grid>
+            ))}
+          </Grid>
         )}
 
         <Paper
@@ -219,7 +208,7 @@ export default function HomePage() {
               <Typography color="text.secondary" sx={{ mt: 1, mb: 3, fontSize: { md: '1.05rem' } }}>
                 {nextRace
                   ? `${nextRace.circuit}, ${nextRace.country}`
-                  : 'Appena la stagione sara disponibile, la prossima azione comparira qui.'}
+                  : 'Appena la stagione sarà disponibile, la prossima azione comparirà qui.'}
               </Typography>
 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>

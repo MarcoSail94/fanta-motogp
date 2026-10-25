@@ -1,18 +1,71 @@
 // webapp/src/components/RaceEventCard.tsx
+import type { ReactNode } from 'react';
 import { Card, CardContent, CardActions, Typography, Box, Button, Chip, LinearProgress, Tooltip } from '@mui/material';
-import { Block, CalendarToday, LocationOn, SportsScore, Speed } from '@mui/icons-material';
+import { Block, CalendarToday, EmojiEvents, LocationOn, Person, SportsScore, Speed } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { format, differenceInDays, isBefore, isAfter } from 'date-fns';
 import { it } from 'date-fns/locale';
-import type { Race } from '../types';
+import type { MyRaceScore, Race } from '../types';
 import { getGpDate, getSprintDate } from '../utils/raceDates';
-import { getRaceCancellationNotice } from '../utils/raceCancellation';
+import { getRaceCancellationNotice, isSessionCancelled } from '../utils/raceCancellation';
 
 interface RaceEventCardProps {
   race: Race;
+  myScores?: MyRaceScore[];
 }
 
-export function RaceEventCard({ race }: RaceEventCardProps) {
+function SummaryLine({ icon, label, value, valueColor }: {
+  icon: ReactNode;
+  label: string;
+  value: ReactNode;
+  valueColor?: string;
+}) {
+  return (
+    <Box display="flex" alignItems="center" gap={0.75} sx={{ minWidth: 0 }}>
+      {icon}
+      <Typography variant="caption" color="text.secondary" noWrap sx={{ flexShrink: 0 }}>{label}</Typography>
+      <Typography variant="body2" fontWeight={800} color={valueColor} noWrap sx={{ ml: 'auto', minWidth: 0 }}>
+        {value}
+      </Typography>
+    </Box>
+  );
+}
+
+// Riepilogo delle gare concluse: vincitore della gara MotoGP e i tuoi punti della giornata
+function RaceSummary({ race, myScores = [] }: { race: Race; myScores?: MyRaceScore[] }) {
+  const motogpCancelled = isSessionCancelled(race, 'MOTOGP', 'RACE');
+  const winner = motogpCancelled
+    ? 'gara annullata'
+    : race.motogpWinner?.name ?? (race.hasResults ? '-' : 'risultati in arrivo');
+
+  return (
+    <Box sx={{ mt: 1, p: 1, borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.055)', display: 'grid', gap: 0.5 }}>
+      <SummaryLine
+        icon={<EmojiEvents sx={{ fontSize: 16, color: '#FFB300', flexShrink: 0 }} />}
+        label="Vincitore MotoGP"
+        value={winner}
+        valueColor={motogpCancelled ? 'warning.main' : undefined}
+      />
+      {myScores.length === 1 && (
+        <SummaryLine
+          icon={<Person sx={{ fontSize: 16, color: 'text.secondary', flexShrink: 0 }} />}
+          label="I tuoi punti"
+          value={`${myScores[0].points} pt`}
+        />
+      )}
+      {myScores.length > 1 && myScores.map(score => (
+        <SummaryLine
+          key={score.leagueId}
+          icon={<Person sx={{ fontSize: 16, color: 'text.secondary', flexShrink: 0 }} />}
+          label={score.leagueName}
+          value={`${score.points} pt`}
+        />
+      ))}
+    </Box>
+  );
+}
+
+export function RaceEventCard({ race, myScores }: RaceEventCardProps) {
   const navigate = useNavigate();
   const raceDate = getGpDate(race);
   const sprintDate = getSprintDate(race);
@@ -201,8 +254,10 @@ export function RaceEventCard({ race }: RaceEventCardProps) {
         {/* Spacer che si espande */}
         <Box sx={{ flexGrow: 1 }} />
 
-        {/* Countdown */}
-        {(isUpcoming || isInProgress) && daysUntil > 0 ? (
+        {/* Countdown, oppure riepilogo per le gare concluse */}
+        {isPast ? (
+          <RaceSummary race={race} myScores={myScores} />
+        ) : (isUpcoming || isInProgress) && daysUntil > 0 ? (
           <Box sx={{ pt: 1 }}>
             <Box display="flex" justifyContent="space-between" mb={1}>
               <Typography variant="caption">Countdown</Typography>

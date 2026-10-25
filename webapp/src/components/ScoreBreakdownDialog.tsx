@@ -7,7 +7,7 @@ import {
   useMediaQuery, useTheme
 } from '@mui/material';
 import { Block, EmojiEvents, ExpandMore, ExpandLess, Info } from '@mui/icons-material';
-import { CATEGORY_LABELS } from '../utils/raceCancellation';
+import { categoryLabel } from '../utils/categories';
 
 interface ScoreBreakdownProps {
   open: boolean;
@@ -63,7 +63,7 @@ function RiderScoreCard({ score, accent, hasScores }: { score: any; accent: stri
         <Typography variant="body2" fontWeight={800} noWrap sx={{ minWidth: 0 }}>
           {score.rider}{' '}
           <Typography component="span" variant="caption" color="text.secondary">
-            {CATEGORY_LABELS[score.riderCategory as keyof typeof CATEGORY_LABELS] || score.riderCategory}
+            {categoryLabel(score.riderCategory)}
           </Typography>
         </Typography>
         <Typography variant="subtitle2" fontWeight={900} sx={{ flexShrink: 0 }}>
@@ -278,7 +278,7 @@ export function ScoreBreakdownDialog({ open, onClose, lineupData }: ScoreBreakdo
                             {score.rider.split(' ').pop()}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {score.riderCategory || '-'}
+                            {categoryLabel(score.riderCategory)}
                           </Typography>
                         </Box>
                       </Stack>

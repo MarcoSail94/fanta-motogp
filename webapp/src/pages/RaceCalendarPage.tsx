@@ -1,9 +1,9 @@
 // webapp/src/pages/RaceCalendarPage.tsx
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getAllRaces } from '../services/api';
+import { getAllRaces, getMyRaceScores } from '../services/api';
 import { queryKeys } from '../services/queryKeys';
-import type { Race } from '../types';
+import type { MyRaceScore, Race } from '../types';
 import { Alert, Box, Button, CircularProgress, Grid, Paper, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { CalendarToday, Flag, SportsScore } from '@mui/icons-material';
 import { isAfter, isBefore } from 'date-fns';
@@ -32,10 +32,24 @@ export default function RaceCalendarPage() {
     queryFn: () => getAllRaces(currentYear),
   });
 
+  const { data: myScoresData } = useQuery<{ scores: MyRaceScore[] }>({
+    queryKey: queryKeys.races.myScores(currentYear),
+    queryFn: () => getMyRaceScores(currentYear),
+  });
+
   const races = useMemo(
     () => [...(racesData?.races || [])].sort((a, b) => a.round - b.round),
     [racesData]
   );
+
+  // Punti delle tue squadre per gara (una voce per lega)
+  const scoresByRace = useMemo(() => {
+    const map = new Map<string, MyRaceScore[]>();
+    for (const score of myScoresData?.scores || []) {
+      map.set(score.raceId, [...(map.get(score.raceId) || []), score]);
+    }
+    return map;
+  }, [myScoresData]);
 
   const now = new Date();
   const nextRace = races.find((race) => raceBucket(race, now) !== 'Concluse');
@@ -123,7 +137,7 @@ export default function RaceCalendarPage() {
         <EmptyState
           icon={<CalendarToday sx={{ fontSize: 56 }} />}
           title="Nessuna gara disponibile"
-          description={`Il calendario ${currentYear} non e ancora disponibile.`}
+          description={`Il calendario ${currentYear} non è ancora disponibile.`}
         />
       ) : (
         <Stack spacing={4}>
@@ -144,7 +158,7 @@ export default function RaceCalendarPage() {
                 <Grid container spacing={3} alignItems="stretch">
                   {sectionRaces.map((race) => (
                     <Grid key={race.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
-                      <RaceEventCard race={race} />
+                      <RaceEventCard race={race} myScores={scoresByRace.get(race.id)} />
                     </Grid>
                   ))}
                 </Grid>

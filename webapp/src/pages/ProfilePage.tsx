@@ -211,7 +211,7 @@ export default function ProfilePage() {
       <PageHeader
         eyebrow="Account"
         title="Profilo utente"
-        subtitle="Gestisci identita, sicurezza e preferenze del tuo account."
+        subtitle="Gestisci identità, sicurezza e preferenze del tuo account."
         actions={
           <Button variant="outlined" startIcon={<Logout />} onClick={logout}>
             Esci

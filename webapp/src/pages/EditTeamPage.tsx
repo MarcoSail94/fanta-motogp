@@ -18,6 +18,7 @@ import {
 import { useNotification } from '../contexts/NotificationContext';
 import { MobileActionBar } from '../components/ui/MobileActionBar';
 import { PageHeader } from '../components/ui/PageHeader';
+import { categoryLabel } from '../utils/categories';
 
 
 const categoryColors = {
@@ -175,7 +176,7 @@ export default function EditTeamPage() {
       const maxForCategory = categoryRequirements[rider.category as keyof typeof categoryRequirements].max;
 
       if (categoryCount >= maxForCategory) {
-        notify(`Puoi selezionare massimo ${maxForCategory} piloti ${rider.category}`, 'warning');
+        notify(`Puoi selezionare massimo ${maxForCategory} piloti ${categoryLabel(rider.category)}`, 'warning');
         return;
       }
 
@@ -535,7 +536,7 @@ export default function EditTeamPage() {
                       </ListItemAvatar>
                       <ListItemText
                         primary={rider.name}
-                        secondary={`${rider.category} - ${rider.value} crediti`}
+                        secondary={`${categoryLabel(rider.category)} - ${rider.value} crediti`}
                         primaryTypographyProps={{ fontSize: 14 }}
                         secondaryTypographyProps={{ fontSize: 12 }}
                       />

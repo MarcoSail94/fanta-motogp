@@ -24,6 +24,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { PageHeader } from '../components/ui/PageHeader';
 import { ActionBanner } from '../components/ui/ActionBanner';
 import { getGpDate, getLineupDeadlineDate } from '../utils/raceDates';
+import { categoryLabel } from '../utils/categories';
 
 interface Team {
   id: string;
@@ -247,7 +248,7 @@ export default function TeamsPage() {
                           </ListItemAvatar>
                           <ListItemText
                             primary={rider.name}
-                            secondary={`${rider.category} - ${rider.value} crediti`}
+                            secondary={`${categoryLabel(rider.category)} - ${rider.value} crediti`}
                           />
                         </ListItem>
                       ))}

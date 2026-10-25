@@ -5,6 +5,8 @@ import { PrismaClient } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { RaceCancellationInput, summarizeRaceCancellations } from '../services/raceCancellationService';
 import { withPublicPosition } from '../services/resultPositions';
+import { loadLeagueStandings } from '../services/standingsService';
+import { pickBestAndWorst } from '../services/roundRecapService';
 
 const prisma = new PrismaClient();
 
@@ -197,8 +199,12 @@ export const getRaceCalendar = async (req: Request, res: Response) => {
       where: { season },
       orderBy: { round: 'asc' },
       include: {
+        _count: { select: { results: true } },
+        // Vincitore della gara MotoGP, mostrato nelle card delle gare concluse
         results: {
-          select: { id: true },
+          where: { session: 'RACE', position: 1, rider: { category: 'MOTOGP' } },
+          select: { rider: { select: { name: true, number: true } } },
+          take: 1,
         },
         cancellations: cancellationsSelect,
       },
@@ -206,8 +212,10 @@ export const getRaceCalendar = async (req: Request, res: Response) => {
 
     const calendar = races.map(race => ({
       ...withCancellationInfo(race),
-      hasResults: race.results.length > 0,
+      hasResults: race._count.results > 0,
+      motogpWinner: race.results[0]?.rider ?? null,
       results: undefined,
+      _count: undefined,
     }));
 
     res.json({ 
@@ -342,48 +350,101 @@ export const checkIsRaceWeekend = async (req: Request, res: Response) => {
 };
 
 // GET /api/races/latest-scores-status
+// Riepilogo "La tua giornata" per le squadre dell'utente nell'ultima gara conclusa:
+// resta visibile dalla fine del weekend fino all'inizio del weekend successivo
 export const getLatestRaceScoresStatus = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId;
     const now = new Date();
-    
-    // Calcoliamo la data limite di "2 giorni fa" (48 ore in millisecondi)
-    const dueGiorniFa = new Date(now.getTime() - (48 * 60 * 60 * 1000));
 
-    // 1. Trova l'ultima gara passata (conclusa PRIMA di adesso, ma DOPO dueGiorniFa)
+    // 1. Ultima gara il cui weekend è finito
     const lastRace = await prisma.race.findFirst({
-      where: {
-        endDate: { 
-          lt: now, 
-          gte: dueGiorniFa // La gara deve essersi conclusa nelle ultime 48 ore
-        },
-      },
-      orderBy: { gpDate: 'desc' },
+      where: { endDate: { lt: now } },
+      orderBy: { endDate: 'desc' },
     });
 
-    // Se non c'è nessuna gara conclusa negli ultimi 2 giorni, nascondiamo il banner
     if (!lastRace) {
-      return res.json({ hasNewScores: false });
+      return res.json({ hasNewScores: false, summaries: [] });
     }
 
-    // 2. Controlla se esistono dei TeamScore per QUESTA gara per l'utente corrente
-    const scoresCount = await prisma.teamScore.count({
-      where: {
-        raceId: lastRace.id,
-        team: {
-          userId: userId
-        }
-      }
+    // 2. Se è già iniziato il weekend successivo il riepilogo non serve più
+    const nextWeekendStarted = await prisma.race.findFirst({
+      where: { startDate: { gt: lastRace.endDate, lte: now } },
+      select: { id: true },
     });
 
-    res.json({ 
+    if (nextWeekendStarted) {
+      return res.json({ hasNewScores: false, summaries: [] });
+    }
+
+    // 3. Punteggi dell'utente per QUESTA gara, uno per lega
+    const userScores = await prisma.teamScore.findMany({
+      where: { raceId: lastRace.id, team: { userId } },
+      include: {
+        team: {
+          select: { id: true, name: true, leagueId: true, league: { select: { name: true } } },
+        },
+      },
+    });
+
+    const summaries = await Promise.all(userScores.map(async score => {
+      const standings = await loadLeagueStandings(prisma, score.team.leagueId);
+      const standing = standings.find(team => team.teamId === score.teamId);
+
+      return {
+        leagueId: score.team.leagueId,
+        leagueName: score.team.league.name,
+        teamId: score.team.id,
+        teamName: score.team.name,
+        points: score.totalPoints,
+        position: standing?.position ?? null,
+        positionChange: standing?.positionChange ?? null,
+        teamsCount: standings.length,
+        ...pickBestAndWorst(score.riderScores),
+      };
+    }));
+
+    res.json({
       lastRaceId: lastRace.id,
       lastRaceName: lastRace.name,
-      hasNewScores: scoresCount > 0 
+      hasNewScores: summaries.length > 0,
+      summaries,
     });
 
   } catch (error) {
     console.error('Errore nel controllo dei punteggi recenti:', error);
     res.status(500).json({ error: 'Errore interno' });
+  }
+};
+
+// GET /api/races/my-scores/:year - Punti delle squadre dell'utente per ogni gara della stagione
+export const getMyRaceScores = async (req: AuthRequest, res: Response) => {
+  const season = parseInt(req.params.year);
+
+  if (isNaN(season)) {
+    return res.status(400).json({ error: 'Anno non valido' });
+  }
+
+  try {
+    const scores = await prisma.teamScore.findMany({
+      where: { team: { userId: req.userId }, race: { season } },
+      select: {
+        raceId: true,
+        totalPoints: true,
+        team: { select: { leagueId: true, league: { select: { name: true } } } },
+      },
+    });
+
+    res.json({
+      scores: scores.map(score => ({
+        raceId: score.raceId,
+        leagueId: score.team.leagueId,
+        leagueName: score.team.league.name,
+        points: score.totalPoints,
+      })),
+    });
+  } catch (error) {
+    console.error('Errore recupero punti utente:', error);
+    res.status(500).json({ error: 'Errore nel recupero dei tuoi punti' });
   }
 };

@@ -24,6 +24,7 @@ export const queryKeys = {
     all: (year?: number) => ['allRaces', year] as const,
     upcoming: ['upcomingRaces'] as const,
     latestScoresStatus: ['latestScoresStatus'] as const,
+    myScores: (year?: number) => ['myRaceScores', year] as const,
     detail: (raceId?: string) => ['race', raceId] as const,
     resultsRoot: ['raceResults'] as const,
     results: (raceId?: string) => ['raceResults', raceId] as const,

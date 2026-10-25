@@ -43,6 +43,7 @@ import {
 import { useNotification } from '../contexts/NotificationContext';
 import { MobileActionBar } from '../components/ui/MobileActionBar';
 import { PageHeader } from '../components/ui/PageHeader';
+import { categoryLabel } from '../utils/categories';
 
 
 const categoryColors = {
@@ -179,7 +180,7 @@ export default function CreateTeamPage() {
       }
       
       if (categoryCount >= maxForCategory) {
-        notify(`Puoi selezionare al massimo ${maxForCategory} piloti per la categoria ${rider.category}.`, 'warning');
+        notify(`Puoi selezionare al massimo ${maxForCategory} piloti per la categoria ${categoryLabel(rider.category)}.`, 'warning');
         return;
       }
       
@@ -523,7 +524,7 @@ export default function CreateTeamPage() {
                     >
                       <ListItemText
                         primary={rider.name}
-                        secondary={`${rider.category} - ${rider.value} crediti`}
+                        secondary={`${categoryLabel(rider.category)} - ${rider.value} crediti`}
                       />
                     </ListItem>
                   ))

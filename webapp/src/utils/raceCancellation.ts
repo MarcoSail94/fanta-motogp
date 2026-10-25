@@ -1,12 +1,9 @@
 import type { Category, RaceCancellationStatus, SessionType } from '../types';
+import { CATEGORY_LABELS } from './categories';
+
+export { CATEGORY_LABELS };
 
 type RaceCancellationLike = Partial<RaceCancellationStatus> | null | undefined;
-
-export const CATEGORY_LABELS: Record<Category, string> = {
-  MOTOGP: 'MotoGP',
-  MOTO2: 'Moto2',
-  MOTO3: 'Moto3',
-};
 
 export const SESSION_LABELS: Record<SessionType, string> = {
   RACE: 'Gara',

@@ -84,6 +84,35 @@ export interface Race {
   cancelledSessions?: CancelledSession[];
   cancelledRaceCategories?: Category[];
   isCancelled?: boolean;
+  motogpWinner?: { name: string; number: number } | null;
+}
+
+export interface MyRaceScore {
+  raceId: string;
+  leagueId: string;
+  leagueName: string;
+  points: number;
+}
+
+export interface RiderPick {
+  rider: string;
+  riderCategory: Category;
+  points: number;
+  predicted: number | null;
+  actual: number | string | null;
+}
+
+export interface RoundSummary {
+  leagueId: string;
+  leagueName: string;
+  teamId: string;
+  teamName: string;
+  points: number;
+  position: number | null;
+  positionChange: number | null;
+  teamsCount: number;
+  bestPick: RiderPick | null;
+  worstPick: RiderPick | null;
 }
 
 export interface CancelledSession {
