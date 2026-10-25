@@ -81,6 +81,20 @@ export interface Race {
   season: number;
   trackLayoutUrl?: string | null;
   hasResults?: boolean;
+  cancelledSessions?: CancelledSession[];
+  cancelledRaceCategories?: Category[];
+  isCancelled?: boolean;
+}
+
+export interface CancelledSession {
+  category: Category;
+  session: SessionType;
+}
+
+export interface RaceCancellationStatus {
+  cancelledSessions: CancelledSession[];
+  cancelledRaceCategories: Category[];
+  isCancelled: boolean;
 }
 
 export interface LineupRider {

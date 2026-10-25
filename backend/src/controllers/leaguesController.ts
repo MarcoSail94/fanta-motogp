@@ -5,6 +5,7 @@ import { validationResult } from 'express-validator';
 import crypto from 'crypto';
 import { AuthRequest } from '../middleware/auth';
 import { buildLeagueStandings, loadLeagueStandings } from '../services/standingsService';
+import { summarizeRaceCancellations } from '../services/raceCancellationService';
 
 const prisma = new PrismaClient();
 
@@ -414,7 +415,7 @@ export const getLeagueRaceLineups = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Lega non trovata' });
     }
 
-    const race = await prisma.race.findUnique({ where: { id: raceId } });
+    const race = await prisma.race.findUnique({ where: { id: raceId }, include: { cancellations: true } });
     if (!race) {
       return res.status(404).json({ error: 'Gara non trovata' });
     }
@@ -470,7 +471,7 @@ export const getLeagueRaceLineups = async (req: AuthRequest, res: Response) => {
       };
     });
 
-    res.json({ lineups: formattedLineups });
+    res.json({ lineups: formattedLineups, raceStatus: summarizeRaceCancellations(race.cancellations) });
   } catch (error) {
     console.error('Errore recupero schieramenti di lega:', error);
     res.status(500).json({ error: 'Errore nel recupero degli schieramenti' });
@@ -492,7 +493,7 @@ export const getLeagueRaceLineupsForWeb = async (req: AuthRequest, res: Response
             return res.status(404).json({ error: 'Lega non trovata' });
         }
 
-        const race = await prisma.race.findUnique({ where: { id: raceId } });
+        const race = await prisma.race.findUnique({ where: { id: raceId }, include: { cancellations: true } });
         if (!race) {
             return res.status(404).json({ error: 'Gara non trovata' });
         }
@@ -549,7 +550,7 @@ export const getLeagueRaceLineupsForWeb = async (req: AuthRequest, res: Response
 
         const message = !canViewAllLineups ? 'Gli schieramenti degli avversari saranno visibili dopo la deadline della gara.' : undefined;
 
-        res.json({ lineups: formattedLineups, message });
+        res.json({ lineups: formattedLineups, message, raceStatus: summarizeRaceCancellations(race.cancellations) });
 
     } catch (error) {
         console.error('Errore recupero schieramenti di lega:', error);

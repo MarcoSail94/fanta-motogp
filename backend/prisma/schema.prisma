@@ -158,6 +158,19 @@ model Race {
   teamScores    TeamScore[]
   lineups       RaceLineup[]
   leagueRaces   League[]
+  cancellations RaceCancellation[]
+}
+
+// Sessione annullata dall'organizzazione (es. maltempo): l'API la espone con status CANCELLED
+model RaceCancellation {
+  id        String      @id @default(uuid())
+  raceId    String
+  race      Race        @relation(fields: [raceId], references: [id], onDelete: Cascade)
+  category  Category
+  session   SessionType
+  createdAt DateTime    @default(now())
+
+  @@unique([raceId, category, session])
 }
 
 model RaceLineup {

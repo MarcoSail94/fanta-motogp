@@ -1,6 +1,7 @@
 // backend/src/services/motogpApiService.ts
 import axios from 'axios';
 import { Category, PrismaClient, RiderType, Rider, SessionType, Race } from '@prisma/client';
+import { buildRaceScoringPlan, pickApiSession, RaceScoringPlan } from './raceCancellationService';
 
 const prisma = new PrismaClient();
 
@@ -270,21 +271,21 @@ export class MotoGPApiService {
           const sessions = sessionsResponse.data;
           
           // --- LOGICA E LOGS PER LE SESSIONI MULTIPLE (BANDIERA ROSSA) ---
-          const racSessions = sessions.filter((s: any) => s.type === 'RAC');
+          const racSessions: any[] = sessions.filter((s: any) => s.type === 'RAC');
           console.log(`\n[DEBUG - ${category}] Trovate ${racSessions.length} sessioni RAC. Dettagli:`, 
             racSessions.map((s: any) => ({ id: s.id, number: s.number, status: s.status }))
           );
 
-          const sprSessions = sessions.filter((s: any) => s.type === 'SPR');
+          const sprSessions: any[] = sessions.filter((s: any) => s.type === 'SPR');
           if (sprSessions.length > 0) {
             console.log(`[DEBUG - ${category}] Trovate ${sprSessions.length} sessioni SPR. Dettagli:`, 
               sprSessions.map((s: any) => ({ id: s.id, number: s.number, status: s.status }))
             );
           }
 
-          // Ordiniamo e prendiamo quella con il numero più alto
-          const raceSession = racSessions.sort((a: any, b: any) => (b.number || 0) - (a.number || 0))[0];
-          const sprintSession = sprSessions.sort((a: any, b: any) => (b.number || 0) - (a.number || 0))[0];
+          // Prendiamo quella con il numero più alto (o l'ultima conclusa se quella è annullata)
+          const raceSession = pickApiSession(racSessions);
+          const sprintSession = pickApiSession(sprSessions);
 
           if (raceSession) {
              console.log(`[DEBUG - ${category}] 🎯 RAC Selezionata: number ${raceSession.number}, status: ${raceSession.status}`);
@@ -300,9 +301,16 @@ export class MotoGPApiService {
           const fp2Session = sessions.find((s: any) => (s.type === 'FP' && s.number === 2) || s.type === 'FP2');
           const prSession = sessions.find((s: any) => s.type === 'PR');
 
-          // Controlla se la gara principale di questa categoria è finita
-          if (!raceSession || raceSession.status !== 'FINISHED') {
+          // Controlla se la gara principale di questa categoria è finita (o annullata)
+          if (!raceSession || (raceSession.status !== 'FINISHED' && raceSession.status !== 'CANCELLED')) {
             allCategoriesRaceFinished = false;
+          }
+
+          if (raceSession?.status === 'CANCELLED') {
+            await this.markSessionCancelled(raceId, category, SessionType.RACE);
+          }
+          if (sprintSession?.status === 'CANCELLED') {
+            await this.markSessionCancelled(raceId, category, SessionType.SPRINT);
           }
 
           // Salva i risultati solo per le sessioni terminate
@@ -365,7 +373,7 @@ export class MotoGPApiService {
       }
 
       if (allCategoriesRaceFinished) {
-        console.log(`🏁 Tutte le gare principali per ${race.name} sono terminate. Avvio calcolo punteggi...`);
+        console.log(`🏁 Tutte le gare principali per ${race.name} sono terminate o annullate. Avvio calcolo punteggi...`);
         await this.calculateTeamScores(raceId, SessionType.RACE);
         if (race.sprintDate) {
           await this.calculateTeamScores(raceId, SessionType.SPRINT);
@@ -443,8 +451,8 @@ export class MotoGPApiService {
              targetSessions.map((s: any) => ({ number: s.number, status: s.status }))
         );
 
-        // Prendi quella con il 'number' più alto
-        const session = targetSessions.sort((a: any, b: any) => (b.number || 0) - (a.number || 0))[0];
+        // Prendi quella con il 'number' più alto (o l'ultima conclusa se quella è annullata)
+        const session = pickApiSession(targetSessions);
 
         if (session) {
              console.log(`[DEBUG - syncRaceOrSprint] 🎯 Selezionata sessione con number ${session.number} e status ${session.status}\n`);
@@ -490,6 +498,11 @@ export class MotoGPApiService {
         const allSessions = await this.getAllApiSessions(race.apiEventId!, categoryId);
         const q1Session = allSessions.find((s: any) => s.type === 'Q1' || (s.type === 'Q' && s.number === 1));
         const q2Session = allSessions.find((s: any) => s.type === 'Q2' || (s.type === 'Q' && s.number === 2));
+
+        if (q2Session?.status === 'CANCELLED') {
+            await this.markSessionCancelled(raceId, category, SessionType.QUALIFYING);
+            return true;
+        }
 
         if (q1Session?.status !== 'FINISHED' || q2Session?.status !== 'FINISHED') {
             console.log(`[WAIT] Qualifiche per ${race.name} - ${category} non ancora concluse.`);
@@ -553,11 +566,25 @@ export class MotoGPApiService {
          console.log(`[INFO] Gara ${session.number} non ha ancora risultati disponibili nel sistema (Stato: ${session.status}).`);
       }
     } 
-    // Nessun caso soddisfatto (es. LIVE, CANCELLED o NOT-STARTED ma è la Gara 1)
+    // Caso 3: Sessione annullata dall'organizzazione (es. maltempo)
+    else if (session.status === 'CANCELLED') {
+      await this.markSessionCancelled(race.id, category, sessionType);
+      return true;
+    }
+    // Nessun caso soddisfatto (es. LIVE o NOT-STARTED ma è la Gara 1)
     else {
       console.log(`[INFO] Sessione ${sessionType} per ${race.name} - ${category} non elaborabile (Stato: ${session.status}, Numero: ${session.number || 'N/A'}).`);
     }
     return false;
+  }
+
+  private async markSessionCancelled(raceId: string, category: Category, session: SessionType) {
+    await prisma.raceCancellation.upsert({
+      where: { raceId_category_session: { raceId, category, session } },
+      update: {},
+      create: { raceId, category, session },
+    });
+    console.log(`[CANCELLED] Sessione ${session} - ${category} annullata per la gara ${raceId}.`);
   }
 
   private mergeQualifyingResults(q2Results: any[], q1Results: any[]): any[] {
@@ -682,6 +709,11 @@ export class MotoGPApiService {
         },
       });
     }
+
+    // Se la sessione era stata segnata come annullata ma ora ha una classifica, l'annullamento non vale più
+    if (sortedClassification.length > 0) {
+      await prisma.raceCancellation.deleteMany({ where: { raceId, category, session } });
+    }
   }
 
   private async fetchAndCreateRider(apiRiderId: string, category: Category): Promise<Rider | null> {
@@ -722,10 +754,10 @@ export class MotoGPApiService {
     }
   }
 
-  async calculateTeamScores(raceId: string, session: SessionType) {
+  async calculateTeamScores(raceId: string, session: SessionType): Promise<RaceScoringPlan | null> {
     if (session !== SessionType.RACE) {
       console.log(`-- Il calcolo dei punteggi per la sessione ${session} verrà eseguito insieme a quello della gara principale. --`);
-      return;
+      return null;
     }
 
     console.log(`-- Inizio calcolo punteggi combinato (Gara + Sprint) per la gara ${raceId} --`);
@@ -735,11 +767,30 @@ export class MotoGPApiService {
         include: { rider: true },
       });
 
-      if (allSessionResults.length === 0) {
-        console.log(`Nessun risultato (Gara/Sprint) trovato per la gara ${raceId}. Calcolo saltato.`);
-        return;
+      const raceCancellations = await prisma.raceCancellation.findMany({
+        where: { raceId, session: SessionType.RACE },
+        select: { category: true },
+      });
+      const plan = buildRaceScoringPlan(
+        allSessionResults.filter(result => result.session === 'RACE').map(result => result.rider.category),
+        raceCancellations.map(cancellation => cancellation.category)
+      );
+
+      if (plan.status === 'PENDING') {
+        console.log(`Classifica gara mancante per ${plan.pendingCategories.join(', ')} (gara ${raceId}). Calcolo rimandato.`);
+        return plan;
       }
-      
+
+      if (plan.status === 'ANNULLED') {
+        const { count } = await prisma.teamScore.deleteMany({ where: { raceId } });
+        console.log(`🚫 Gara annullata in tutte le categorie (gara ${raceId}): giornata annullata, ${count} punteggi rimossi.`);
+        return plan;
+      }
+
+      const cancellationNote = plan.cancelledCategories.length > 0
+        ? `Gara ${plan.cancelledCategories.join(', ')} annullata: categoria esclusa dal punteggio.`
+        : null;
+
       const raceResultsMap = new Map<string, { position: number | null, status: string }>();
       const sprintResultsMap = new Map<string, { position: number | null, status: string }>();
       const maxPositions: Record<string, { race: number, sprint: number }> = {
@@ -861,6 +912,25 @@ export class MotoGPApiService {
         for (const lineupRider of lineupToUse.lineupRiders) {
           const rider = lineupRider.rider;
           const predictedPosition = lineupRider.predictedPosition;
+
+          // Categoria con gara annullata: il pilota resta nel dettaglio ma non concorre al totale
+          if (!plan.scorableCategories.includes(rider.category)) {
+            riderScores.push({
+              rider: rider.name,
+              riderCategory: rider.category,
+              points: 0,
+              predicted: predictedPosition,
+              actual: null,
+              sprintPosition: null,
+              base: 0,
+              predictionMalus: 0,
+              qualifyingBonus: 0,
+              sprintBonus: 0,
+              excluded: true,
+              details: { raceBase: 0, raceMalus: 0 },
+            });
+            continue;
+          }
           
           const raceResult = raceResultsMap.get(rider.id);
           const sprintResult = sprintResultsMap.get(rider.id);
@@ -899,23 +969,27 @@ export class MotoGPApiService {
           });
         }
         
+        const notes = [calculationNotes, cancellationNote].filter(Boolean).join(' ') || null;
+
         await prisma.teamScore.upsert({
           where: { teamId_raceId_session: { teamId: team.id, raceId, session: SessionType.RACE } },
-          update: { totalPoints: totalTeamPoints, calculatedAt: new Date(), riderScores: riderScores as any, notes: calculationNotes },
-          create: { teamId: team.id, raceId, session: SessionType.RACE, totalPoints: totalTeamPoints, riderScores: riderScores as any, notes: calculationNotes }
+          update: { totalPoints: totalTeamPoints, calculatedAt: new Date(), riderScores: riderScores as any, notes },
+          create: { teamId: team.id, raceId, session: SessionType.RACE, totalPoints: totalTeamPoints, riderScores: riderScores as any, notes }
         });
         
         await prisma.teamScore.deleteMany({
           where: { teamId: team.id, raceId, session: SessionType.SPRINT }
         });
 
-        console.log(`Team ${team.name}: ${totalTeamPoints} punti (combinato). Note: ${calculationNotes || 'Schieramento regolare'}`);
+        console.log(`Team ${team.name}: ${totalTeamPoints} punti (combinato). Note: ${notes || 'Schieramento regolare'}`);
         console.log(`  - Bonus Sprint applicati: ${[...sprintBonusMap.entries()].filter(([rid]) => 
           lineupToUse.lineupRiders.some((lr: any) => lr.rider.id === rid)
         ).map(([_, bonus]) => bonus).join(', ') || 'nessuno'}`);
       }
+      return plan;
     } catch (error) {
       console.error(`Errore nel calcolo dei punteggi combinati per la gara ${raceId}:`, error);
+      return null;
     }
   }
   

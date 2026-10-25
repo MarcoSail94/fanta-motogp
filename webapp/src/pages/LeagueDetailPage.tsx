@@ -13,7 +13,7 @@ import {
 import {
   TrendingUp, TrendingDown, Remove, Groups, Settings, Share, Lock,
   ContentCopy, NotificationsActive, EmojiEvents, WorkspacePremium,
-  BarChart, Refresh, SportsMotorsports, Timer, Info, Flag
+  BarChart, Refresh, SportsMotorsports, Timer, Info, Flag, Block
 } from '@mui/icons-material';
 import { format, isPast, differenceInDays, differenceInHours } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -37,6 +37,7 @@ import { MobileStandingCard } from '../components/league/MobileStandingCard';
 import { MetricTile } from '../components/ui/MetricTile';
 import type { LeagueStanding } from '../components/league/MobileStandingCard';
 import { getGpDate, getLineupDeadlineDate } from '../utils/raceDates';
+import { getRaceCancellationNotice } from '../utils/raceCancellation';
 
 function LeagueTabLabel({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
@@ -67,6 +68,7 @@ const lineupCategoryColors: Record<string, string> = {
 const podiumColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
 
 function toScoreValue(value: unknown) {
+  if (value === null || value === undefined || value === '') return Number.POSITIVE_INFINITY;
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : Number.POSITIVE_INFINITY;
 }
@@ -206,6 +208,7 @@ export default function LeagueDetailPage() {
     const raceLineups = lineupsData?.lineups || [];
     return [...raceLineups].sort((a: any, b: any) => toScoreValue(a.totalPoints) - toScoreValue(b.totalPoints));
   }, [lineupsData]);
+  const raceCancellationNotice = getRaceCancellationNotice(lineupsData?.raceStatus);
   const isAdmin = league?.isAdmin;
   const userHasTeam = !!myTeam;
   
@@ -760,11 +763,15 @@ export default function LeagueDetailPage() {
               onChange={(e) => setSelectedRaceId(e.target.value)}
               label="Seleziona Gara"
             >
-              {allRaces?.map((race: any) => (
-                <MenuItem key={race.id} value={race.id}>
-                  {race.name} - {format(getGpDate(race), 'dd MMM', { locale: it })}
-                </MenuItem>
-              ))}
+              {allRaces?.map((race: any) => {
+                const notice = getRaceCancellationNotice(race);
+                return (
+                  <MenuItem key={race.id} value={race.id}>
+                    {race.name} - {format(getGpDate(race), 'dd MMM', { locale: it })}
+                    {notice && ` · ${notice.shortLabel}`}
+                  </MenuItem>
+                );
+              })}
             </Select>
           </FormControl>
         </Paper>
@@ -772,6 +779,13 @@ export default function LeagueDetailPage() {
         {lineupsData?.message && (
           <Alert severity="info" variant="outlined" sx={{ mb: 2 }}>
             {lineupsData.message}
+          </Alert>
+        )}
+
+        {raceCancellationNotice && (
+          <Alert severity={raceCancellationNotice.severity} icon={<Block />} sx={{ mb: 2 }}>
+            <Typography variant="body2" fontWeight={900}>{raceCancellationNotice.title}</Typography>
+            <Typography variant="body2">{raceCancellationNotice.description}</Typography>
           </Alert>
         )}
 
@@ -883,8 +897,9 @@ export default function LeagueDetailPage() {
                               const accent = lineupCategoryColors[lr.rider.category] || '#E60023';
                               const actualLabel = formatPositionValue(riderScore?.actual);
                               const predictedLabel = formatPositionValue(lr.predictedPosition);
+                              const isExcluded = Boolean(riderScore?.excluded);
                               const points = riderScore?.points;
-                              const hasPoints = points !== null && points !== undefined && points !== '-';
+                              const hasPoints = !isExcluded && points !== null && points !== undefined && points !== '-';
 
                               return (
                                 <Box
@@ -894,6 +909,7 @@ export default function LeagueDetailPage() {
                                     borderRadius: 2,
                                     border: '1px solid rgba(255,255,255,0.10)',
                                     bgcolor: 'rgba(255,255,255,0.045)',
+                                    opacity: isExcluded ? 0.6 : 1,
                                   }}
                                 >
                                   <Stack direction="row" spacing={1.25} alignItems="center">
@@ -918,12 +934,16 @@ export default function LeagueDetailPage() {
                                       </Typography>
                                       <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
                                         <Chip size="small" label={`Prev ${predictedLabel}`} variant="outlined" />
-                                        <Chip
-                                          size="small"
-                                          label={`Arr ${actualLabel}`}
-                                          color={actualLabel !== '-' ? 'success' : 'default'}
-                                          variant={actualLabel !== '-' ? 'filled' : 'outlined'}
-                                        />
+                                        {isExcluded ? (
+                                          <Chip size="small" icon={<Block />} label="Gara annullata" color="warning" variant="outlined" />
+                                        ) : (
+                                          <Chip
+                                            size="small"
+                                            label={`Arr ${actualLabel}`}
+                                            color={actualLabel !== '-' ? 'success' : 'default'}
+                                            variant={actualLabel !== '-' ? 'filled' : 'outlined'}
+                                          />
+                                        )}
                                       </Stack>
                                     </Box>
 

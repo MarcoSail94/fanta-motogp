@@ -41,6 +41,7 @@ import {
   useTheme,
 } from '@mui/material';
 import {
+  Block,
   CalendarToday,
   EmojiEvents,
   Flag,
@@ -58,6 +59,8 @@ import { it } from 'date-fns/locale';
 import { EmptyState } from '../components/ui/EmptyState';
 import { MetricTile } from '../components/ui/MetricTile';
 import { getGpDate, getSprintDate } from '../utils/raceDates';
+import { CATEGORY_LABELS, SESSION_LABELS, getRaceCancellationNotice, isSessionCancelled } from '../utils/raceCancellation';
+import type { SessionType } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 
@@ -85,6 +88,14 @@ interface RaceResult {
 }
 
 const CATEGORIES: Category[] = ['MOTOGP', 'MOTO2', 'MOTO3'];
+const SESSION_TYPES: Record<RaceSession, SessionType> = {
+  race: 'RACE',
+  sprint: 'SPRINT',
+  qualifying: 'QUALIFYING',
+  fp1: 'FP1',
+  fp2: 'FP2',
+  pr: 'PR',
+};
 const SESSION_OPTIONS: Array<{ value: RaceSession; label: string; icon?: ReactNode; sprintOnly?: boolean }> = [
   { value: 'race', label: 'Gara', icon: <SportsScore fontSize="small" /> },
   { value: 'sprint', label: 'Sprint', icon: <Speed fontSize="small" />, sprintOnly: true },
@@ -566,6 +577,9 @@ export default function RaceDetailPage() {
   const hasSprint = !!sprintDate;
   const weekendStatus = getWeekendStatus(race);
   const canRefreshRaceData = Boolean(isLeagueAdmin && latestCompletedRaceId === race.id);
+  const cancellationNotice = getRaceCancellationNotice(race);
+  const selectedSessionType = SESSION_TYPES[selectedSession];
+  const selectedSessionCancelled = isSessionCancelled(race, selectedCategory, selectedSessionType);
 
   return (
     <Box className="fade-in" sx={{ pb: 2 }}>
@@ -604,6 +618,9 @@ export default function RaceDetailPage() {
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
               <Chip label={`Round ${race.round}`} color="secondary" size="small" />
               <Chip label={weekendStatus.label} color={weekendStatus.color} size="small" />
+              {cancellationNotice && (
+                <Chip icon={<Block />} label={cancellationNotice.shortLabel} color={cancellationNotice.severity} size="small" />
+              )}
             </Stack>
             <Typography
               variant={isMobile ? 'h4' : 'h3'}
@@ -656,6 +673,13 @@ export default function RaceDetailPage() {
           </Grid>
         </Grid>
       </Paper>
+
+      {cancellationNotice && (
+        <Alert severity={cancellationNotice.severity} icon={<Block />} sx={{ mb: 2 }}>
+          <Typography fontWeight={900}>{cancellationNotice.title}</Typography>
+          <Typography variant="body2">{cancellationNotice.description}</Typography>
+        </Alert>
+      )}
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid size={{ xs: 6, md: 3 }}>
@@ -808,6 +832,12 @@ export default function RaceDetailPage() {
                 </Table>
               </TableContainer>
             )
+          ) : selectedSessionCancelled ? (
+            <EmptyState
+              icon={<Block sx={{ fontSize: 54 }} />}
+              title="Sessione annullata"
+              description={`${SESSION_LABELS[selectedSessionType]} ${CATEGORY_LABELS[selectedCategory]} è stata annullata dall'organizzazione.`}
+            />
           ) : (
             <EmptyState
               icon={<SportsScore sx={{ fontSize: 54 }} />}
@@ -869,6 +899,7 @@ export default function RaceDetailPage() {
             {CATEGORIES.map((category) => {
               const raceResults = raceResultsData?.results?.RACE?.[category] || [];
               const winner = raceResults.find((result: RaceResult) => result.position === 1);
+              const raceCancelled = isSessionCancelled(race, category, 'RACE');
 
               return (
                 <Grid key={category} size={{ xs: 12, md: 4 }}>
@@ -887,6 +918,13 @@ export default function RaceDetailPage() {
                             Vincitore gara, {winner.points || 0} pt
                           </Typography>
                         </Box>
+                      </Stack>
+                    ) : raceCancelled ? (
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Block color="warning" />
+                        <Typography variant="body2" color="warning.main" fontWeight={700}>
+                          Gara annullata
+                        </Typography>
                       </Stack>
                     ) : (
                       <Typography variant="body2" color="text.secondary">

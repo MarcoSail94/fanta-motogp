@@ -6,7 +6,7 @@ import {
   Button, Box, Typography, Chip, Paper, Collapse, Stack, Avatar,
   useMediaQuery, useTheme
 } from '@mui/material';
-import { EmojiEvents, ExpandMore, ExpandLess, Info } from '@mui/icons-material';
+import { Block, EmojiEvents, ExpandMore, ExpandLess, Info } from '@mui/icons-material';
 
 interface ScoreBreakdownProps {
   open: boolean;
@@ -43,6 +43,8 @@ export function ScoreBreakdownDialog({ open, onClose, lineupData }: ScoreBreakdo
         rider: score.rider || lineupRider?.rider?.name || '-',
         number: score.number ?? lineupRider?.rider?.number ?? '-',
         riderCategory: score.riderCategory || lineupRider?.rider?.category || '-',
+        // Categoria con gara annullata: nessun valore concorre al totale
+        ...(score.excluded && { base: '-', predictionMalus: '-', points: '-' }),
       };
     })
     : lineup.map((l: any) => ({
@@ -156,6 +158,7 @@ export function ScoreBreakdownDialog({ open, onClose, lineupData }: ScoreBreakdo
                   <TableRow
                     key={index}
                     sx={{
+                      opacity: score.excluded ? 0.55 : 1,
                       '&:hover': { bgcolor: 'rgba(255,255,255,0.055)' },
                       '& td': { borderColor: 'rgba(255,255,255,0.08)' },
                     }}
@@ -190,9 +193,13 @@ export function ScoreBreakdownDialog({ open, onClose, lineupData }: ScoreBreakdo
                       <Chip size="small" variant="outlined" label={formatPosition(score.predicted)} />
                     </TableCell>
                     <TableCell align="center" sx={{ px: 0.5 }}>
-                      <Typography variant="body2">
-                        {formatPosition(score.actual)}
-                      </Typography>
+                      {score.excluded ? (
+                        <Chip size="small" icon={<Block />} label="Annullata" color="warning" variant="outlined" />
+                      ) : (
+                        <Typography variant="body2">
+                          {formatPosition(score.actual)}
+                        </Typography>
+                      )}
                     </TableCell>
                     {showSprintColumn && (
                       <TableCell align="center" sx={{ px: 0.5 }}>
@@ -304,6 +311,9 @@ export function ScoreBreakdownDialog({ open, onClose, lineupData }: ScoreBreakdo
               </Typography>
               <Typography variant="caption" component="div">
                 • <strong>Non classificati:</strong> Ultimo + 1
+              </Typography>
+              <Typography variant="caption" component="div">
+                • <strong>Gara annullata:</strong> i piloti di quella categoria non contano; se sono annullate le gare di tutte le categorie, la giornata è annullata
               </Typography>
               
               <Box mt={1} p={1} bgcolor="background.paper" borderRadius={0.5}>

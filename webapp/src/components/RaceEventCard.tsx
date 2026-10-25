@@ -1,11 +1,12 @@
 // webapp/src/components/RaceEventCard.tsx
 import { Card, CardContent, CardActions, Typography, Box, Button, Chip, LinearProgress, Tooltip } from '@mui/material';
-import { CalendarToday, LocationOn, SportsScore, Speed } from '@mui/icons-material';
+import { Block, CalendarToday, LocationOn, SportsScore, Speed } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { format, differenceInDays, isBefore, isAfter } from 'date-fns';
 import { it } from 'date-fns/locale';
 import type { Race } from '../types';
 import { getGpDate, getSprintDate } from '../utils/raceDates';
+import { getRaceCancellationNotice } from '../utils/raceCancellation';
 
 interface RaceEventCardProps {
   race: Race;
@@ -29,8 +30,10 @@ export function RaceEventCard({ race }: RaceEventCardProps) {
   
   // Il countdown si basa sull'inizio della gara vera e propria (gpDate)
   const daysUntil = differenceInDays(raceDate, now);
+  const cancellationNotice = getRaceCancellationNotice(race);
 
   const getStatusLabel = () => {
+    if (race.isCancelled) return 'Annullata';
     if (isPast) return 'Conclusa';
     if (isInProgress) return 'In Corso';
     if (daysUntil === 0) return 'Oggi';
@@ -40,6 +43,7 @@ export function RaceEventCard({ race }: RaceEventCardProps) {
   };
 
   const getStatusColor = () => {
+    if (race.isCancelled) return 'error';
     if (isPast) return 'default';
     if (isInProgress) return 'error';
     if (daysUntil === 0) return 'warning';
@@ -83,7 +87,7 @@ export function RaceEventCard({ race }: RaceEventCardProps) {
       )}
     
       {/* Header con Status Badge (Attivo durante tutto il weekend) */}
-      {isInProgress && (
+      {isInProgress && !race.isCancelled && (
         <Box sx={{
           bgcolor: 'error.main',
           color: 'white',
@@ -182,6 +186,16 @@ export function RaceEventCard({ race }: RaceEventCardProps) {
               Gara: {format(raceDate, 'dd/MM', { locale: it })}
             </Typography>
           </Box>
+          {cancellationNotice && (
+            <Tooltip title={cancellationNotice.description}>
+              <Box display="flex" alignItems="center" gap={1} mt={0.5}>
+                <Block fontSize="small" color={cancellationNotice.severity} sx={{ flexShrink: 0 }} />
+                <Typography variant="body2" color={`${cancellationNotice.severity}.main`} fontWeight={700} noWrap>
+                  {cancellationNotice.shortLabel}
+                </Typography>
+              </Box>
+            </Tooltip>
+          )}
         </Box>
 
         {/* Spacer che si espande */}

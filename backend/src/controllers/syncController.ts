@@ -80,10 +80,19 @@ export const triggerScoreCalculation = async (req: Request, res: Response) => {
 
   try {
     console.log(`[CRON-SCORES] Avvio calcolo punteggi per Gara ID: ${raceId}`);
-    await motogpApi.calculateTeamScores(raceId, SessionType.RACE);
-    
+    const plan = await motogpApi.calculateTeamScores(raceId, SessionType.RACE);
+
+    if (plan?.status === 'PENDING') {
+      console.log(`[CRON-SCORES] Calcolo rimandato per Gara ID: ${raceId}. Classifiche mancanti: ${plan.pendingCategories.join(', ')}`);
+      return res.status(200).json({ success: false, plan, message: `Calcolo rimandato: classifica gara mancante per ${plan.pendingCategories.join(', ')}.` });
+    }
+    if (plan?.status === 'ANNULLED') {
+      console.log(`[CRON-SCORES] Giornata annullata per Gara ID: ${raceId}`);
+      return res.status(200).json({ success: true, plan, message: `Gara annullata in tutte le categorie: giornata annullata, nessun punteggio assegnato.` });
+    }
+
     console.log(`[CRON-SCORES] Calcolo punteggi completato per Gara ID: ${raceId}`);
-    return res.status(200).json({ success: true, message: `Calcolo punteggi completato per la gara ${raceId}.` });
+    return res.status(200).json({ success: true, plan, message: `Calcolo punteggi completato per la gara ${raceId}.` });
   } catch (error) {
     console.error(`[CRON-SCORES] ERRORE durante il calcolo dei punteggi per ${raceId}:`, error);
     return res.status(500).json({ error: `Errore durante il calcolo dei punteggi per ${raceId}.` });

@@ -3,8 +3,17 @@ import { Request, Response } from 'express';
 import { raceWeekendDetector } from '../services/raceWeekendDetector';
 import { PrismaClient } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth';
+import { RaceCancellationInput, summarizeRaceCancellations } from '../services/raceCancellationService';
 
 const prisma = new PrismaClient();
+
+const cancellationsSelect = { select: { category: true, session: true } } as const;
+
+// Sostituisce le righe RaceCancellation con un riepilogo pronto per il frontend
+const withCancellationInfo = <T extends { cancellations: RaceCancellationInput[] }>({ cancellations, ...race }: T) => ({
+  ...race,
+  ...summarizeRaceCancellations(cancellations),
+});
 
 // GET /api/races/upcoming
 export const getUpcomingRaces = async (req: Request, res: Response) => {
@@ -20,8 +29,9 @@ export const getUpcomingRaces = async (req: Request, res: Response) => {
         gpDate: 'asc',
       },
       take: 10,
+      include: { cancellations: cancellationsSelect },
     });
-    res.json({ races });
+    res.json({ races: races.map(withCancellationInfo) });
   } catch (error) {
     console.error('Errore recupero gare future:', error);
     res.status(500).json({ error: 'Errore nel recupero delle gare' });
@@ -49,11 +59,12 @@ export const getPastRaces = async (req: Request, res: Response) => {
             riderId: true,
           },
         },
+        cancellations: cancellationsSelect,
       },
     });
 
     const racesWithStatus = races.map(race => ({
-      ...race,
+      ...withCancellationInfo(race),
       hasResults: race.results.length > 0,
       results: undefined,
     }));
@@ -81,6 +92,7 @@ export const getRaceById = async (req: Request, res: Response) => {
             position: 'asc',
           },
         },
+        cancellations: cancellationsSelect,
       },
     });
 
@@ -88,7 +100,7 @@ export const getRaceById = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Gara non trovata' });
     }
     
-    res.json({ race });
+    res.json({ race: withCancellationInfo(race) });
 
   } catch (error) {
     console.error('Errore recupero dettagli gara:', error);
@@ -187,11 +199,12 @@ export const getRaceCalendar = async (req: Request, res: Response) => {
         results: {
           select: { id: true },
         },
+        cancellations: cancellationsSelect,
       },
     });
 
     const calendar = races.map(race => ({
-      ...race,
+      ...withCancellationInfo(race),
       hasResults: race.results.length > 0,
       results: undefined,
     }));
